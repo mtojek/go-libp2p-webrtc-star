@@ -2,18 +2,22 @@ package examples
 
 import (
 	"context"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/mtojek/go-libp2p-webrtc-star"
-	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
 
 	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/mtojek/go-libp2p-webrtc-star"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-const protocolID = "/go-libp2p-webrtc-star/1.0.0"
+const (
+	protocolID = "/p2p-webrtc-star/1.0.0"
+	starSignalAddr = "/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star"
+)
 
 var helloWorldMessage = []byte("Hello world!")
 
@@ -22,8 +26,9 @@ func TestSendSingleMessage(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	firstHost := mustCreateDefaultHost(t, ctx)
-	secondHost := mustCreateDefaultHost(t, ctx)
+	signalAddr := mustCreateSignalAddr(t)
+	firstHost := mustCreateNewHost(t, ctx, signalAddr)
+	secondHost := mustCreateNewHost(t, ctx, signalAddr)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -50,9 +55,16 @@ func TestSendSingleMessage(t *testing.T) {
 	wg.Wait()
 }
 
-func mustCreateDefaultHost(t *testing.T, ctx context.Context) host.Host {
+func mustCreateSignalAddr(t *testing.T) multiaddr.Multiaddr {
+	starSignal, err := multiaddr.NewMultiaddr(starSignalAddr)
+	require.NoError(t, err)
+	return starSignal
+}
+
+func mustCreateNewHost(t *testing.T, ctx context.Context, signalAddr multiaddr.Multiaddr) host.Host {
 	h, err := libp2p.New(ctx,
-		libp2p.Transport(star.Transport()))
+		libp2p.Transport(star.Transport()),
+		libp2p.ListenAddrs(signalAddr))
 	require.NoError(t, err)
 	return h
 }
