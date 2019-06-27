@@ -3,6 +3,7 @@ package examples
 import (
 	"context"
 	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/mtojek/go-libp2p-webrtc-star"
 	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
@@ -51,7 +52,7 @@ func TestSendSingleMessage(t *testing.T) {
 
 func mustCreateDefaultHost(t *testing.T, ctx context.Context) host.Host {
 	h, err := libp2p.New(ctx,
-		libp2p.Transport(nil))
+		libp2p.Transport(star.Transport()))
 	require.NoError(t, err)
 	return h
 }
