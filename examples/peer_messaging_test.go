@@ -12,6 +12,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	_ "github.com/mtojek/go-wss-transport"
 )
 
 const (
