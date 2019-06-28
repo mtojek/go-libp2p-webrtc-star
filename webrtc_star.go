@@ -12,23 +12,22 @@ type WebRTCStar struct {}
 
 var _ transport.Transport = new(WebRTCStar)
 
-func (wrs *WebRTCStar) Dial(ctx context.Context, raddr multiaddr.Multiaddr, p peer.ID) (transport.CapableConn, error) {
+func (t *WebRTCStar) Dial(ctx context.Context, raddr multiaddr.Multiaddr, p peer.ID) (transport.CapableConn, error) {
 	panic("implement me: Dial")
 }
 
-func (wrs *WebRTCStar) CanDial(addr multiaddr.Multiaddr) bool {
+func (t *WebRTCStar) CanDial(addr multiaddr.Multiaddr) bool {
 	panic("implement me: CanDial")
 }
 
-func (wrs *WebRTCStar) Listen(laddr multiaddr.Multiaddr) (transport.Listener, error) {
+func (t *WebRTCStar) Listen(laddr multiaddr.Multiaddr) (transport.Listener, error) {
 	panic("implement me: Listen")
 }
 
-func (wrs *WebRTCStar) Protocols() []int {
-	return []int{WebRTCStarProtocol.Code}
+func (t *WebRTCStar) Protocols() []int {
+	return []int{protocol.Code}
 }
 
-func (wrs *WebRTCStar) Proxy() bool {
+func (t *WebRTCStar) Proxy() bool {
 	return false
 }
-

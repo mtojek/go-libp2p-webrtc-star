@@ -12,19 +12,16 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	_ "github.com/mtojek/go-wss-transport"
 )
 
 const (
 	protocolID = "/p2p-webrtc-star/1.0.0"
-	starSignalAddr = "/dns4/star-signal.cloud.ipfs.team/wss/p2p-webrtc-star"
+	starSignalAddr = "/dns4/star-signal.cloud.ipfs.team/http/p2p-webrtc-star"
 )
 
 var helloWorldMessage = []byte("Hello world!")
 
 func TestSendSingleMessage(t *testing.T) {
-	// given
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
