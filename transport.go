@@ -4,11 +4,14 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-const protocolCode = 499
+const (
+	protocolCode = 499
+	protocolName = "p2p-webrtc-star"
+)
 
 var protocol = &multiaddr.Protocol{
 	Code:  protocolCode,
-	Name:  "p2p-webrtc-star",
+	Name:  protocolName,
 	VCode: multiaddr.CodeToVarint(protocolCode),
 }
 
