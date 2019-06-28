@@ -7,21 +7,21 @@ import (
 )
 
 type signaling struct {
-	address string
+	address multiaddr.Multiaddr
 }
 
 func newSignaling(maddr multiaddr.Multiaddr) (*signaling, error) {
-	signalingAddress, err := decapsulate(maddr)
+	address, err := decapsulate(maddr)
 	if err != nil {
 		return nil, err
 	}
 
 	return &signaling{
-		address: signalingAddress,
+		address: *address,
 	}, nil
 }
 
-func decapsulate(addr multiaddr.Multiaddr) (string, error) {
+func decapsulate(addr multiaddr.Multiaddr) (*multiaddr.Multiaddr, error) {
 	starMultiAddr, err := multiaddr.NewMultiaddr("/" + protocolName)
 	if err != nil {
 		logger.Fatal(err)
@@ -36,14 +36,10 @@ func decapsulate(addr multiaddr.Multiaddr) (string, error) {
 	signalAddr := addr.Decapsulate(httpMultiAddr)
 
 	if len(signalAddr.Protocols()) == 0 {
-		return "", errors.New("no protocols defined")
+		return nil, errors.New("no protocols defined")
 	} else if len(signalAddr.Protocols()) != 1 {
-		return "", errors.New("single signaling server is supported")
+		return nil, errors.New("single signaling server is supported")
 	}
 
-	sa, err := signalAddr.ValueForProtocol(signalAddr.Protocols()[0].Code)
-	if err != nil {
-		return "", err
-	}
-	return sa, nil
+	return &signalAddr, nil
 }

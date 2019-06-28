@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -16,7 +17,7 @@ import (
 
 const (
 	protocolID = "/p2p-webrtc-star/1.0.0"
-	starSignalAddr = "/dns4/star-signal.cloud.ipfs.team/http/p2p-webrtc-star"
+	starSignalAddr = "/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
 )
 
 var helloWorldMessage = []byte("Hello world!")
@@ -43,6 +44,9 @@ func TestSendSingleMessage(t *testing.T) {
 		wg.Done()
 	})
 
+	mma, _ := multiaddr.NewMultiaddr(starSignalAddr + "/ipfs/" + secondHost.ID().Pretty())
+	firstHost.Peerstore().AddAddr(secondHost.ID(), mma, 60 * time.Second)
+
 	firstHostStream, err := firstHost.NewStream(ctx, secondHost.ID(), protocolID)
 	require.NoError(t, err)
 
@@ -62,8 +66,7 @@ func mustCreateSignalAddr(t *testing.T) multiaddr.Multiaddr {
 
 func mustCreateNewHost(t *testing.T, ctx context.Context, signalAddr multiaddr.Multiaddr) host.Host {
 	h, err := libp2p.New(ctx,
-		libp2p.Transport(star.Transport()),
-		libp2p.ListenAddrs(signalAddr))
+		libp2p.Transport(star.Transport()))
 	require.NoError(t, err)
 	return h
 }
