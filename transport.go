@@ -26,6 +26,6 @@ func Protocol() *multiaddr.Protocol {
 	return protocol
 }
 
-func Transport() *WebRTCStar {
+func New() *WebRTCStar {
 	return new(WebRTCStar)
 }

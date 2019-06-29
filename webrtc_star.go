@@ -2,6 +2,7 @@ package star
 
 import (
 	"context"
+	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/transport"
 	"github.com/multiformats/go-multiaddr"
@@ -16,6 +17,7 @@ func (t *WebRTCStar) Dial(ctx context.Context, raddr multiaddr.Multiaddr, p peer
 }
 
 func (t *WebRTCStar) CanDial(addr multiaddr.Multiaddr) bool {
+	fmt.Println(addr)
 	panic("implement me: CanDial")
 }
 

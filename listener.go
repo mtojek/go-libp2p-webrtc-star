@@ -1,12 +1,10 @@
 package star
 
 import (
-	"github.com/multiformats/go-multiaddr-net"
-	"net"
-	"time"
-
 	"github.com/libp2p/go-libp2p-core/transport"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/multiformats/go-multiaddr-net"
+	"net"
 )
 
 type listener struct {
@@ -22,7 +20,6 @@ func newListener(address multiaddr.Multiaddr) *listener {
 }
 
 func (l *listener) Accept() (transport.CapableConn, error) {
-	time.Sleep( 3600 * time.Second)
 	panic("implement me: Accept")
 }
 
