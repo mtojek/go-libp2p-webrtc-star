@@ -24,7 +24,7 @@ func (l *listener) Accept() (transport.CapableConn, error) {
 }
 
 func (l *listener) Close() error {
-	return nil // TODO
+	panic("implement me: Close")
 }
 
 func (l *listener) Addr() net.Addr {
