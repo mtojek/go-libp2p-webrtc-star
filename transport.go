@@ -1,31 +1,40 @@
 package star
 
 import (
+	"context"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/transport"
 	"github.com/multiformats/go-multiaddr"
 )
 
-const (
-	protocolCode = 499
-	protocolName = "p2p-webrtc-star"
-)
+type Transport struct {}
 
-var protocol = &multiaddr.Protocol{
-	Code:  protocolCode,
-	Name:  protocolName,
-	VCode: multiaddr.CodeToVarint(protocolCode),
+var _ transport.Transport = new(Transport)
+
+func (t *Transport) Dial(ctx context.Context, raddr multiaddr.Multiaddr, p peer.ID) (transport.CapableConn, error) {
+	panic("implement me: Dial")
 }
 
-func init() {
-	err := multiaddr.AddProtocol(*protocol)
+func (t *Transport) CanDial(addr multiaddr.Multiaddr) bool {
+	return format.Matches(addr)
+}
+
+func (t *Transport) Listen(laddr multiaddr.Multiaddr) (transport.Listener, error) {
+	signaling, err := newSignaling(laddr)
 	if err != nil {
-		logger.Fatal(err)
+		return nil, err
 	}
+	return newListener(signaling.address), nil
 }
 
-func Protocol() *multiaddr.Protocol {
-	return protocol
+func (t *Transport) Protocols() []int {
+	return []int{protocol.Code}
 }
 
-func New() *WebRTCStar {
-	return new(WebRTCStar)
+func (t *Transport) Proxy() bool {
+	return false
+}
+
+func New() *Transport {
+	return new(Transport)
 }
