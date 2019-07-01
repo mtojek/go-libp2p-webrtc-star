@@ -2,16 +2,15 @@ package examples
 
 import (
 	"context"
-	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-tcp-transport"
-	"github.com/mtojek/go-libp2p-webrtc-star"
-	wss "github.com/mtojek/go-wss-transport"
-	"github.com/multiformats/go-multiaddr"
-	"github.com/stretchr/testify/require"
 	"log"
 	"testing"
 	"time"
+
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/mtojek/go-libp2p-webrtc-star"
+	"github.com/multiformats/go-multiaddr"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -21,13 +20,12 @@ const (
 	peerstoreAddressTTL = 1 * time.Hour
 )
 
+var starMultiaddr = mustCreateSignalAddr()
+
 func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 	h, err := libp2p.New(ctx,
-		libp2p.Transport(tcp.NewTCPTransport),
-		libp2p.Transport(wss.New),
 		libp2p.Transport(star.New),
-		libp2p.DefaultMuxers,
-		libp2p.DefaultSecurity)
+		libp2p.ListenAddrs(starMultiaddr))
 	require.NoError(t, err)
 	return h
 }

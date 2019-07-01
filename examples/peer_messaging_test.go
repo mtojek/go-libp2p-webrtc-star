@@ -2,11 +2,12 @@ package examples
 
 import (
 	"context"
+	"sync"
+	"testing"
+	
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"sync"
-	"testing"
 )
 
 var helloWorldMessage = []byte("Hello world!")
@@ -14,8 +15,6 @@ var helloWorldMessage = []byte("Hello world!")
 func TestSendSingleMessage(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	starMultiaddr := mustCreateSignalAddr()
 
 	firstHost := mustCreateHost(t, ctx)
 	secondHost := mustCreateHost(t, ctx)
