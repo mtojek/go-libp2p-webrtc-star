@@ -13,10 +13,10 @@ type listener struct {
 
 var _ transport.Listener = new(listener)
 
-func newListener(address multiaddr.Multiaddr) *listener {
+func newListener(address multiaddr.Multiaddr) (*listener, error) {
 	return &listener{
 		address: address,
-	}
+	}, nil
 }
 
 func (l *listener) Accept() (transport.CapableConn, error) {

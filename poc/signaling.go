@@ -1,14 +1,19 @@
-package star
+package poc
 
 import (
 	"errors"
+	"github.com/ipfs/go-log"
 
 	"github.com/multiformats/go-multiaddr"
 )
 
+const protocolName = "p2p-webrtc-star"
+
 type signaling struct {
 	address multiaddr.Multiaddr
 }
+
+var logger = log.Logger("p2p-webrtc-star-poc")
 
 func newSignaling(maddr multiaddr.Multiaddr) (*signaling, error) {
 	address, err := decapsulate(maddr)

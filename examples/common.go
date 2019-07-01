@@ -23,8 +23,8 @@ const (
 
 func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 	h, err := libp2p.New(ctx,
-		libp2p.Transport(wss.New),
 		libp2p.Transport(tcp.NewTCPTransport),
+		libp2p.Transport(wss.New),
 		libp2p.Transport(star.New),
 		libp2p.DefaultMuxers,
 		libp2p.DefaultSecurity)
