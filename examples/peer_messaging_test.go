@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
-	
+
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,11 +38,11 @@ func TestSendSingleMessage(t *testing.T) {
 	firstHostStream, err := firstHost.NewStream(ctx, secondHost.ID(), protocolID)
 	require.NoError(t, err)
 
-	wg.Wait()
-
 	// when
 	n, err := firstHostStream.Write(helloWorldMessage)
 	require.NoError(t, err)
+
+	wg.Wait()
 
 	require.NotZero(t, n, "no data written")
 }
