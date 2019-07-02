@@ -27,11 +27,11 @@ func newListener(address ma.Multiaddr, addressBook addressBook) (*listener, erro
 }
 
 func (l *listener) Accept() (transport.CapableConn, error) {
-	panic("implement me: Accept")
+	return l.signal.Accept()
 }
 
 func (l *listener) Close() error {
-	panic("implement me: Close")
+	return l.signal.Close()
 }
 
 func (l *listener) Addr() net.Addr {

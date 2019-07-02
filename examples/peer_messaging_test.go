@@ -33,8 +33,9 @@ func TestSendSingleMessage(t *testing.T) {
 		wg.Done()
 	})
 
-	firstHostStream, err := firstHost.NewStream(ctx, secondHost.ID(), protocolID)
-	require.NoError(t, err)
+	firstHostStream := waitForStream(t, func() (network.Stream, error) {
+		return firstHost.NewStream(ctx, secondHost.ID(), protocolID)
+	}, waitForStreamTimeout)
 
 	// when
 	n, err := firstHostStream.Write(helloWorldMessage)

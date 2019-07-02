@@ -1,6 +1,7 @@
 package star
 
 import (
+	"github.com/libp2p/go-libp2p-core/transport"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -21,4 +22,16 @@ func newSignal(maddr ma.Multiaddr, addressBook addressBook) (*signal, error) {
 		address: maddr.Decapsulate(protocolMultiaddr),
 		addressBook: addressBook,
 	}, nil
+}
+
+func (s *signal) Accept() (transport.CapableConn, error) {
+	for {
+		time.Sleep(1 * time.Minute)
+	}
+
+	panic("implement me: Accept")
+}
+
+func (s *signal) Close() error {
+	panic("implement me: Close")
 }
