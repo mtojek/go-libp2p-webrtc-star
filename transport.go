@@ -23,6 +23,7 @@ func (t *Transport) CanDial(addr multiaddr.Multiaddr) bool {
 }
 
 func (t *Transport) Listen(laddr multiaddr.Multiaddr) (transport.Listener, error) {
+	logger.Debugf("Listen on address: %s", laddr)
 	return newListener(laddr, t.addressBook)
 }
 
@@ -35,6 +36,7 @@ func (t *Transport) Proxy() bool {
 }
 
 func New(addressBook addressBook) *Transport {
+	logger.Debug("Create new star transport")
 	return &Transport{
 		addressBook: addressBook,
 	}

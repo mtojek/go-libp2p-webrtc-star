@@ -17,24 +17,27 @@ import (
 
 const (
 	protocolID     = "/p2p-webrtc-star/1.0.0"
-	signalAddr = "/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
+	firstSignalAddr = "/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
+	secondSignalAddr = "/dns4/star-signal.cloud.ipfs.team/tcp/443/wss/p2p-webrtc-star"
 
 	waitForStreamTimeout = 60 * time.Minute
 )
 
 func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
-	signalMultiaddr := mustCreateSignalAddr()
+	firstSignalMultiaddr := mustCreateSignalAddr(firstSignalAddr)
+	secondSignalMultiaddr := mustCreateSignalAddr(secondSignalAddr)
+
 	peerstore := pstoremem.NewPeerstore()
 
 	h, err := libp2p.New(ctx,
-		libp2p.ListenAddrs(signalMultiaddr),
+		libp2p.ListenAddrs(firstSignalMultiaddr, secondSignalMultiaddr),
 		libp2p.Peerstore(peerstore),
 		libp2p.Transport(star.New(peerstore)))
 	require.NoError(t, err)
 	return h
 }
 
-func mustCreateSignalAddr() multiaddr.Multiaddr {
+func mustCreateSignalAddr(signalAddr string) multiaddr.Multiaddr {
 	starMultiaddr, err := multiaddr.NewMultiaddr(signalAddr)
 	if err != nil {
 		log.Fatal(err)

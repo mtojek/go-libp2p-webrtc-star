@@ -16,6 +16,8 @@ type listener struct {
 var _ transport.Listener = new(listener)
 
 func newListener(address ma.Multiaddr, addressBook addressBook) (*listener, error) {
+	logger.Debugf("Create new listener (address: %s)", address)
+
 	signal, err := newSignal(address, addressBook)
 	if err != nil {
 		return nil, err
@@ -27,10 +29,12 @@ func newListener(address ma.Multiaddr, addressBook addressBook) (*listener, erro
 }
 
 func (l *listener) Accept() (transport.CapableConn, error) {
+	logger.Debug("Accept a connection")
 	return l.signal.Accept()
 }
 
 func (l *listener) Close() error {
+	logger.Debug("Close listener")
 	return l.signal.Close()
 }
 
