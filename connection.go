@@ -8,50 +8,50 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-type Connection struct {}
+type connection struct {}
 
-var _ transport.CapableConn = new(Connection)
+var _ transport.CapableConn = new(connection)
 
-func (c *Connection) Close() error {
+func (c *connection) Close() error {
 	panic("implement me")
 }
 
-func (c *Connection) IsClosed() bool {
+func (c *connection) IsClosed() bool {
 	panic("implement me")
 }
 
-func (c *Connection) OpenStream() (mux.MuxedStream, error) {
+func (c *connection) OpenStream() (mux.MuxedStream, error) {
 	panic("implement me")
 }
 
-func (c *Connection) AcceptStream() (mux.MuxedStream, error) {
+func (c *connection) AcceptStream() (mux.MuxedStream, error) {
 	panic("implement me")
 }
 
-func (c *Connection) LocalPeer() peer.ID {
+func (c *connection) LocalPeer() peer.ID {
 	panic("implement me")
 }
 
-func (c *Connection) LocalPrivateKey() crypto.PrivKey {
+func (c *connection) LocalPrivateKey() crypto.PrivKey {
 	panic("implement me")
 }
 
-func (c *Connection) RemotePeer() peer.ID {
+func (c *connection) RemotePeer() peer.ID {
 	panic("implement me")
 }
 
-func (c *Connection) RemotePublicKey() crypto.PubKey {
+func (c *connection) RemotePublicKey() crypto.PubKey {
 	panic("implement me")
 }
 
-func (c *Connection) LocalMultiaddr() multiaddr.Multiaddr {
+func (c *connection) LocalMultiaddr() multiaddr.Multiaddr {
 	panic("implement me")
 }
 
-func (Connection) RemoteMultiaddr() multiaddr.Multiaddr {
+func (connection) RemoteMultiaddr() multiaddr.Multiaddr {
 	panic("implement me")
 }
 
-func (Connection) Transport() transport.Transport {
+func (connection) Transport() transport.Transport {
 	panic("implement me")
 }

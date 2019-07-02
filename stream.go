@@ -6,34 +6,34 @@ import (
 	"github.com/libp2p/go-libp2p-core/mux"
 )
 
-type Stream struct {}
+type stream struct {}
 
-var _ mux.MuxedStream = new(Stream)
+var _ mux.MuxedStream = new(stream)
 
-func (s *Stream) Read(p []byte) (n int, err error) {
+func (s *stream) Read(p []byte) (n int, err error) {
 	panic("implement me")
 }
 
-func (s *Stream) Write(p []byte) (n int, err error) {
+func (s *stream) Write(p []byte) (n int, err error) {
 	panic("implement me")
 }
 
-func (s *Stream) Close() error {
+func (s *stream) Close() error {
 	panic("implement me")
 }
 
-func (s *Stream) Reset() error {
+func (s *stream) Reset() error {
 	panic("implement me")
 }
 
-func (s *Stream) SetDeadline(time.Time) error {
+func (s *stream) SetDeadline(time.Time) error {
 	panic("implement me")
 }
 
-func (s *Stream) SetReadDeadline(time.Time) error {
+func (s *stream) SetReadDeadline(time.Time) error {
 	panic("implement me")
 }
 
-func (s *Stream) SetWriteDeadline(time.Time) error {
+func (s *stream) SetWriteDeadline(time.Time) error {
 	panic("implement me")
 }

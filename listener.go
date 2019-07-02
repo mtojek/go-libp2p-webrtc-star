@@ -1,21 +1,28 @@
 package star
 
 import (
-	"github.com/libp2p/go-libp2p-core/transport"
-	"github.com/multiformats/go-multiaddr"
-	"github.com/multiformats/go-multiaddr-net"
 	"net"
+
+	"github.com/libp2p/go-libp2p-core/transport"
+	ma "github.com/multiformats/go-multiaddr"
+	"github.com/multiformats/go-multiaddr-net"
 )
 
 type listener struct {
-	address multiaddr.Multiaddr
+	address ma.Multiaddr
+	signal *signal
 }
 
 var _ transport.Listener = new(listener)
 
-func newListener(address multiaddr.Multiaddr) (*listener, error) {
+func newListener(address ma.Multiaddr, addressBook addressBook) (*listener, error) {
+	signal, err := newSignal(address, addressBook)
+	if err != nil {
+		return nil, err
+	}
 	return &listener{
 		address: address,
+		signal: signal,
 	}, nil
 }
 
@@ -28,13 +35,13 @@ func (l *listener) Close() error {
 }
 
 func (l *listener) Addr() net.Addr {
-	nAddr, err := manet.ToNetAddr(l.address)
+	networkAddress, err := manet.ToNetAddr(l.address)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	return nAddr
+	return networkAddress
 }
 
-func (l *listener) Multiaddr() multiaddr.Multiaddr {
+func (l *listener) Multiaddr() ma.Multiaddr {
 	return l.address
 }

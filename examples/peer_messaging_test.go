@@ -33,8 +33,6 @@ func TestSendSingleMessage(t *testing.T) {
 		wg.Done()
 	})
 
-	firstHost.Peerstore().AddAddr(secondHost.ID(), starMultiaddr, peerstoreAddressTTL)
-
 	firstHostStream, err := firstHost.NewStream(ctx, secondHost.ID(), protocolID)
 	require.NoError(t, err)
 

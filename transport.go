@@ -8,7 +8,9 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-type Transport struct {}
+type Transport struct {
+	addressBook addressBook
+}
 
 var _ transport.Transport = new(Transport)
 
@@ -21,7 +23,7 @@ func (t *Transport) CanDial(addr multiaddr.Multiaddr) bool {
 }
 
 func (t *Transport) Listen(laddr multiaddr.Multiaddr) (transport.Listener, error) {
-	return newListener(laddr)
+	return newListener(laddr, t.addressBook)
 }
 
 func (t *Transport) Protocols() []int {
@@ -32,6 +34,8 @@ func (t *Transport) Proxy() bool {
 	return false
 }
 
-func New() *Transport {
-	return new(Transport)
+func New(addressBook addressBook) *Transport {
+	return &Transport{
+		addressBook: addressBook,
+	}
 }
