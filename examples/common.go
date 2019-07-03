@@ -3,10 +3,10 @@ package examples
 import (
 	"context"
 	"github.com/libp2p/go-libp2p-core/network"
-	"log"
 	"testing"
 	"time"
 
+	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
@@ -23,9 +23,13 @@ const (
 	waitForStreamTimeout = 60 * time.Minute
 )
 
+func init() {
+	golog.SetDebugLogging()
+}
+
 func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
-	firstSignalMultiaddr := mustCreateSignalAddr(firstSignalAddr)
-	secondSignalMultiaddr := mustCreateSignalAddr(secondSignalAddr)
+	firstSignalMultiaddr := mustCreateSignalAddr(t, firstSignalAddr)
+	secondSignalMultiaddr := mustCreateSignalAddr(t, secondSignalAddr)
 
 	peerstore := pstoremem.NewPeerstore()
 
@@ -37,11 +41,9 @@ func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 	return h
 }
 
-func mustCreateSignalAddr(signalAddr string) multiaddr.Multiaddr {
+func mustCreateSignalAddr(t *testing.T, signalAddr string) multiaddr.Multiaddr {
 	starMultiaddr, err := multiaddr.NewMultiaddr(signalAddr)
-	if err != nil {
-		log.Fatal(err)
-	}
+	require.NoError(t, err)
 	return starMultiaddr
 }
 
