@@ -33,10 +33,16 @@ func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 
 	peerstore := pstoremem.NewPeerstore()
 
+	starTransport := star.New().
+		WithPeerstore(peerstore).
+		WithSignalConfiguration(star.SignalConfiguration{
+			URLPath: "/socket.io/?EIO=3&transport=websocket",
+		})
+
 	h, err := libp2p.New(ctx,
 		libp2p.ListenAddrs(firstSignalMultiaddr, secondSignalMultiaddr),
 		libp2p.Peerstore(peerstore),
-		libp2p.Transport(star.New(peerstore)))
+		libp2p.Transport(starTransport))
 	require.NoError(t, err)
 	return h
 }

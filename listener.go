@@ -15,21 +15,16 @@ type listener struct {
 
 var _ transport.Listener = new(listener)
 
-func newListener(address ma.Multiaddr, addressBook addressBook) (*listener, error) {
+func newListener(address ma.Multiaddr, addressBook addressBook, signalConfiguration SignalConfiguration) *listener {
 	logger.Debugf("Create new listener (address: %s)", address)
-
-	signal, err := newSignal(address, addressBook)
-	if err != nil {
-		return nil, err
-	}
 	return &listener{
 		address: address,
-		signal: signal,
-	}, nil
+		signal: newSignal(address, addressBook, signalConfiguration),
+	}
 }
 
 func (l *listener) Accept() (transport.CapableConn, error) {
-	logger.Debug("Accept a connection")
+	logger.Debug("Accept connection")
 	return l.signal.Accept()
 }
 
