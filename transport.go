@@ -25,7 +25,7 @@ func (t *Transport) CanDial(addr multiaddr.Multiaddr) bool {
 
 func (t *Transport) Listen(laddr multiaddr.Multiaddr) (transport.Listener, error) {
 	logger.Debugf("Listen on address: %s", laddr)
-	return newListener(laddr, t.addressBook, t.signalConfiguration), nil
+	return newListener(laddr, t.addressBook, t.signalConfiguration)
 }
 
 func (t *Transport) Protocols() []int {

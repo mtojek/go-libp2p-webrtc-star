@@ -8,6 +8,9 @@ import (
 const (
 	protocolCode = 499
 	protocolName = "p2p-webrtc-star"
+
+	wssProtocolCode = 498
+	wssProtocolName = "wss"
 )
 
 var (
@@ -21,9 +24,9 @@ var (
 	format = mafmt.And(wssFormat, mafmt.Base(protocolCode))
 
 	wssProtocol = ma.Protocol{
-		Code:  498,
-		Name:  "wss",
-		VCode: ma.CodeToVarint(498),
+		Code:  wssProtocolCode,
+		Name:  wssProtocolName,
+		VCode: ma.CodeToVarint(wssProtocolCode),
 	}
 	wssFormat = mafmt.And(mafmt.TCP, mafmt.Base(wssProtocol.Code))
 )
