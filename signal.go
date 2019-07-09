@@ -1,6 +1,7 @@
 package star
 
 import (
+	"github.com/gorilla/websocket"
 	"github.com/multiformats/go-multiaddr-net"
 	"strings"
 	"time"
@@ -12,6 +13,9 @@ import (
 
 type signal struct {
 	addressBook addressBook
+	url string
+
+	connection *websocket.Conn
 }
 
 type SignalConfiguration struct {
@@ -30,11 +34,26 @@ func newSignal(maddr ma.Multiaddr, addressBook addressBook, configuration Signal
 	logger.Debugf("Use signal server: %s", url)
 	return &signal{
 		addressBook: addressBook,
+		url: url,
 	}, nil
 }
 
 func (s *signal) Accept() (transport.CapableConn, error) {
+	err := s.ensureConnectionEstablished()
+	if err != nil {
+		return nil, err
+	}
+
 	panic("implement me: Accept")
+}
+
+func (s *signal) ensureConnectionEstablished() error {
+	var err error
+	s.connection, _, err = websocket.DefaultDialer.Dial(s.url, nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func createSignalURL(addr ma.Multiaddr, configuration SignalConfiguration) (string, error) {
@@ -58,5 +77,8 @@ func readProtocolForSignalURL(maddr ma.Multiaddr) string {
 }
 
 func (s *signal) Close() error {
-	panic("implement me: Close")
+	if s.connection != nil {
+		return s.connection.Close()
+	}
+	return nil // TODO close other connections
 }
