@@ -1,6 +1,7 @@
 package star
 
 import (
+	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/multiformats/go-multiaddr-net"
 	"strings"
@@ -12,10 +13,8 @@ import (
 )
 
 type signal struct {
-	addressBook addressBook
-	url string
-
-	connection *websocket.Conn
+	accepted <-chan transport.CapableConn
+	stopCh chan<- struct{}
 }
 
 type SignalConfiguration struct {
@@ -31,29 +30,12 @@ func newSignal(maddr ma.Multiaddr, addressBook addressBook, configuration Signal
 	if err != nil {
 		return nil, err
 	}
-	logger.Debugf("Use signal server: %s", url)
+	stopCh := make(chan struct{})
+	accepted := startClient(url, addressBook, stopCh)
 	return &signal{
-		addressBook: addressBook,
-		url: url,
+		accepted: accepted,
+		stopCh: stopCh,
 	}, nil
-}
-
-func (s *signal) Accept() (transport.CapableConn, error) {
-	err := s.ensureConnectionEstablished()
-	if err != nil {
-		return nil, err
-	}
-
-	panic("implement me: Accept")
-}
-
-func (s *signal) ensureConnectionEstablished() error {
-	var err error
-	s.connection, _, err = websocket.DefaultDialer.Dial(s.url, nil)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func createSignalURL(addr ma.Multiaddr, configuration SignalConfiguration) (string, error) {
@@ -76,9 +58,41 @@ func readProtocolForSignalURL(maddr ma.Multiaddr) string {
 	return "ws://"
 }
 
-func (s *signal) Close() error {
+func startClient(url string, addressBook addressBook, stopCh chan struct{}) <-chan transport.CapableConn {
+	logger.Debugf("Use signal server: %s", url)
+
+	accepted := make(chan transport.CapableConn)
+	go func() {
+		for {
+
+		}
+	}()
+	return accepted
+}
+
+func (s *signal) ensureConnectionEstablished() error {
+	var err error
+
 	if s.connection != nil {
-		return s.connection.Close()
+		return nil
 	}
-	return nil // TODO close other connections
+
+	s.connection, _, err = websocket.DefaultDialer.Dial(s.url, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *signal) Accept() (transport.CapableConn, error) {
+	return <- s.accepted, nil
+}
+
+func (s *signal) Close() error {
+	return s.stopClient()
+}
+
+func (s *signal) stopClient() error {
+	s.stopCh <- struct{}{}
+	return nil
 }
