@@ -1,15 +1,14 @@
 package star
 
 import (
-	"fmt"
-	"github.com/gorilla/websocket"
-	"github.com/multiformats/go-multiaddr-net"
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/transport"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/multiformats/go-multiaddr-net"
 )
 
 type signal struct {
@@ -63,25 +62,51 @@ func startClient(url string, addressBook addressBook, stopCh chan struct{}) <-ch
 
 	accepted := make(chan transport.CapableConn)
 	go func() {
-		for {
+		var connection *websocket.Conn
+		var err error
 
+		for {
+			if stopSignalReceived(stopCh) {
+				logger.Debugf("Stop signal received. Closing.")
+				return
+			}
+
+			if !isConnectionHealthy(connection) {
+				logger.Debugf("Connection is not healthy.")
+
+				connection, err = openConnection(url)
+				if err != nil {
+					logger.Errorf("Can't establish connection (url: %s): %v", url, err)
+				}
+				logger.Debugf("Connection to signal server established.")
+			}
+
+			logger.Debugf("Connection is healthy.")
+
+			time.Sleep(5 * time.Second)
 		}
 	}()
 	return accepted
 }
 
-func (s *signal) ensureConnectionEstablished() error {
-	var err error
-
-	if s.connection != nil {
-		return nil
+func stopSignalReceived(stopCh chan struct{}) bool {
+	select {
+		case <-stopCh:
+			return true
+		default:
+			return false
 	}
+}
 
-	s.connection, _, err = websocket.DefaultDialer.Dial(s.url, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+func isConnectionHealthy(connection *websocket.Conn) bool {
+	return connection != nil
+}
+
+func openConnection(url string) (*websocket.Conn, error) {
+	logger.Debugf("Open new connection (url: %s)", url)
+
+	connection, _, err := websocket.DefaultDialer.Dial(url, nil)
+	return connection, err
 }
 
 func (s *signal) Accept() (transport.CapableConn, error) {
