@@ -66,6 +66,8 @@ func startClient(url string, addressBook addressBook, stopCh chan struct{}) <-ch
 		var err error
 
 		for {
+			time.Sleep(5 * time.Second)
+
 			if stopSignalReceived(stopCh) {
 				logger.Debugf("Stop signal received. Closing.")
 				return
@@ -76,14 +78,13 @@ func startClient(url string, addressBook addressBook, stopCh chan struct{}) <-ch
 
 				connection, err = openConnection(url)
 				if err != nil {
-					logger.Errorf("Can't establish connection (url: %s): %v", url, err)
+					logger.Errorf("Can't establish connection: %v", err)
+					continue
 				}
 				logger.Debugf("Connection to signal server established.")
 			}
 
 			logger.Debugf("Connection is healthy.")
-
-			time.Sleep(5 * time.Second)
 		}
 	}()
 	return accepted
@@ -103,7 +104,7 @@ func isConnectionHealthy(connection *websocket.Conn) bool {
 }
 
 func openConnection(url string) (*websocket.Conn, error) {
-	logger.Debugf("Open new connection (url: %s)", url)
+	logger.Debugf("Open new connection: %s", url)
 
 	connection, _, err := websocket.DefaultDialer.Dial(url, nil)
 	return connection, err
