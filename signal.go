@@ -76,25 +76,24 @@ func startClient(url string, addressBook addressBook, stopCh chan struct{}) <-ch
 	accepted := make(chan transport.CapableConn)
 	go func() {
 		var connection *websocket.Conn
+		var sp *sessionProperties
 		var err error
 
 		for {
 			if stopSignalReceived(stopCh) {
-				logger.Debugf("Stop signal received. Closing.")
+				logger.Debugf("Stop signal received. Closing")
 				return
 			}
 
 			if !isConnectionHealthy(connection) {
-				logger.Debugf("Connection is not healthy.")
-
 				connection, err = openConnection(url)
 				if err != nil {
 					logger.Errorf("Can't establish connection: %v", err)
 					continue
 				}
-				logger.Debugf("Connection to signal server established.")
+				logger.Debugf("Connection to signal server established")
 
-				err := openSession(connection)
+				sp, err = openSession(connection)
 				if err != nil {
 					logger.Errorf("Can't open session: %v", err)
 					connection = nil
@@ -102,52 +101,62 @@ func startClient(url string, addressBook addressBook, stopCh chan struct{}) <-ch
 				}
 			}
 
-			logger.Debugf("Connection is healthy.")
+			logger.Debugf("%s: Connection is healthy.", sp.SID)
 
 			message, err := readMessage(connection)
 			if err != nil {
-				logger.Errorf("Can't read message: %v", err)
+				logger.Errorf("%s: Can't read message: %v", sp.SID, err)
 				connection = nil
 				continue
 			}
-			logger.Debugf("Message: %s", message)
+			logger.Debugf("%s: Message: %s", sp.SID, message)
 		}
 	}()
 	return accepted
 }
 
-func openSession(connection *websocket.Conn) error {
+func openSession(connection *websocket.Conn) (*sessionProperties, error) {
 	message, err := readMessage(connection)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var sp sessionProperties
 	err = json.Unmarshal(message, &sp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	pongWait := time.Duration(sp.PingIntervalMillis * int64(time.Millisecond))
-	logger.Debugf("Setting read deadline: %v", pongWait)
+	pingInterval := time.Duration(sp.PingIntervalMillis * int64(time.Millisecond))
+	pingTimeout := time.Duration(sp.PingTimeoutMillis * int64(time.Millisecond))
+	logger.Debugf("%s: Set read deadline: %v", sp.SID, pingTimeout)
 
 	connection.SetReadLimit(maxMessageSize)
-	//connection.SetReadDeadline(time.Now().Add(pongWait))
-	connection.SetPingHandler(func(string) error {
-		logger.Debugf("Ping!")
-		return nil
-	})
+	connection.SetReadDeadline(time.Now().Add(pingTimeout))
 	connection.SetPongHandler(func(string) error {
-		logger.Debugf("Pong!")
-		connection.SetReadDeadline(time.Now().Add(pongWait))
+		logger.Debugf("%s: Pong message received", sp.SID)
+		connection.SetReadDeadline(time.Now().Add(pingTimeout))
 		return nil
 	})
 
 	err = readEmptyMessage(connection)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+
+	go func() {
+		pingTicker := time.NewTicker(pingInterval)
+		for range pingTicker.C {
+			logger.Debugf("%s: Send ping message", sp.SID)
+			err := connection.WriteControl(websocket.PingMessage, []byte("ping"), time.Time{})
+			if err != nil {
+				logger.Errorf("%s: Can't send ping message: %v", sp.SID, err)
+				pingTicker.Stop()
+				return
+			}
+		}
+	}()
+	return &sp, nil
 }
 
 func readMessage(connection *websocket.Conn) ([]byte, error) {
