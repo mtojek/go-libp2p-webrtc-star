@@ -1,6 +1,9 @@
 package star
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -11,6 +14,10 @@ import (
 	"github.com/multiformats/go-multiaddr-net"
 )
 
+const (
+	maxMessageSize = 2048
+)
+
 type signal struct {
 	accepted <-chan transport.CapableConn
 	stopCh chan<- struct{}
@@ -18,6 +25,12 @@ type signal struct {
 
 type SignalConfiguration struct {
 	URLPath string
+}
+
+type sessionProperties struct {
+	SID string `json:"sid"`
+	PingIntervalMillis int64 `json:"pingInterval"`
+	PingTimeoutMillis int64 `json:"pingTimeout"`
 }
 
 type addressBook interface {
@@ -66,8 +79,6 @@ func startClient(url string, addressBook addressBook, stopCh chan struct{}) <-ch
 		var err error
 
 		for {
-			time.Sleep(5 * time.Second)
-
 			if stopSignalReceived(stopCh) {
 				logger.Debugf("Stop signal received. Closing.")
 				return
@@ -82,13 +93,89 @@ func startClient(url string, addressBook addressBook, stopCh chan struct{}) <-ch
 					continue
 				}
 				logger.Debugf("Connection to signal server established.")
+
+				err := openSession(connection)
+				if err != nil {
+					logger.Errorf("Can't open session: %v", err)
+					connection = nil
+					continue
+				}
 			}
 
 			logger.Debugf("Connection is healthy.")
+
+			message, err := readMessage(connection)
+			if err != nil {
+				logger.Errorf("Can't read message: %v", err)
+				connection = nil
+				continue
+			}
+			logger.Debugf("Message: %s", message)
 		}
 	}()
 	return accepted
 }
+
+func openSession(connection *websocket.Conn) error {
+	message, err := readMessage(connection)
+	if err != nil {
+		return err
+	}
+
+	var sp sessionProperties
+	err = json.Unmarshal(message, &sp)
+	if err != nil {
+		return err
+	}
+
+	pongWait := time.Duration(sp.PingIntervalMillis * int64(time.Millisecond))
+	logger.Debugf("Setting read deadline: %v", pongWait)
+
+	connection.SetReadLimit(maxMessageSize)
+	//connection.SetReadDeadline(time.Now().Add(pongWait))
+	connection.SetPingHandler(func(string) error {
+		logger.Debugf("Ping!")
+		return nil
+	})
+	connection.SetPongHandler(func(string) error {
+		logger.Debugf("Pong!")
+		connection.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	err = readEmptyMessage(connection)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func readMessage(connection *websocket.Conn) ([]byte, error) {
+	_, message, err := connection.ReadMessage()
+	if err != nil {
+		return nil, err
+	}
+
+	i := bytes.IndexByte(message, '{')
+	if i < 0 {
+		return nil, errors.New("message token not found")
+	}
+	return message[i:], nil
+}
+
+func readEmptyMessage(connection *websocket.Conn) error {
+	_, message, err := connection.ReadMessage()
+	if err != nil {
+		return err
+	}
+
+	i := bytes.IndexByte(message, '{')
+	if i > 0 {
+		return errors.New("empty message expected")
+	}
+	return nil
+}
+
 
 func stopSignalReceived(stopCh chan struct{}) bool {
 	select {
