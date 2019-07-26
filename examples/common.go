@@ -17,8 +17,8 @@ import (
 
 const (
 	protocolID     = "/p2p-webrtc-star/1.0.0"
-	firstSignalAddr = "/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
-	secondSignalAddr = "/dns4/star-signal.cloud.ipfs.team/tcp/443/wss/p2p-webrtc-star"
+	firstSignalAddr = "/dns4/star-signal.cloud.ipfs.team/tcp/443/wss/p2p-webrtc-star"
+	secondSignalAddr = "/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
 
 	waitForStreamTimeout = 60 * time.Minute
 )

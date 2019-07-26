@@ -16,6 +16,9 @@ import (
 
 const (
 	maxMessageSize = 2048
+	messagePrefix = "42"
+
+	ssJoinMessageType = "ss-join"
 )
 
 type signal struct {
@@ -129,13 +132,12 @@ func openSession(connection *websocket.Conn) (*sessionProperties, error) {
 
 	pingInterval := time.Duration(sp.PingIntervalMillis * int64(time.Millisecond))
 	pingTimeout := time.Duration(sp.PingTimeoutMillis * int64(time.Millisecond))
-	logger.Debugf("%s: Set read deadline: %v", sp.SID, pingTimeout)
+	logger.Debugf("%s: Ping interval: %v, Ping timeout: %v", sp.SID, pingInterval, pingTimeout)
 
 	connection.SetReadLimit(maxMessageSize)
-	connection.SetReadDeadline(time.Now().Add(pingTimeout))
 	connection.SetPongHandler(func(string) error {
 		logger.Debugf("%s: Pong message received", sp.SID)
-		connection.SetReadDeadline(time.Now().Add(pingTimeout))
+		connection.SetReadDeadline(time.Time{})
 		return nil
 	})
 
@@ -148,7 +150,15 @@ func openSession(connection *websocket.Conn) (*sessionProperties, error) {
 		pingTicker := time.NewTicker(pingInterval)
 		for range pingTicker.C {
 			logger.Debugf("%s: Send ping message", sp.SID)
-			err := connection.WriteControl(websocket.PingMessage, []byte("ping"), time.Time{})
+			connection.SetReadDeadline(time.Now().Add(pingTimeout))
+			err := sendMessage(connection, "ping", nil) // Application layer ping?
+			if err != nil {
+				logger.Errorf("%s: Can't send ping message: %v", sp.SID, err)
+				pingTicker.Stop()
+				return
+			}
+
+			err = connection.WriteControl(websocket.PingMessage, []byte("ping"), time.Time{})
 			if err != nil {
 				logger.Errorf("%s: Can't send ping message: %v", sp.SID, err)
 				pingTicker.Stop()
@@ -156,6 +166,12 @@ func openSession(connection *websocket.Conn) (*sessionProperties, error) {
 			}
 		}
 	}()
+
+	logger.Debugf("%s: Join the network", sp.SID)
+	err = sendMessage(connection, ssJoinMessageType, "/kopytko")
+	if err != nil {
+		return nil, err
+	}
 	return &sp, nil
 }
 
@@ -170,6 +186,27 @@ func readMessage(connection *websocket.Conn) ([]byte, error) {
 		return nil, errors.New("message token not found")
 	}
 	return message[i:], nil
+}
+
+func sendMessage(connection *websocket.Conn, messageType string, messageBody interface{}) error {
+	var buffer bytes.Buffer
+	buffer.WriteString(messagePrefix)
+	buffer.WriteString(`["`)
+	buffer.WriteString(messageType)
+
+	if messageBody != nil {
+		b, err := json.Marshal(messageBody)
+		if err != nil {
+			return err
+		}
+
+		buffer.WriteString(`","`)
+		buffer.Write(b)
+	}
+
+	buffer.WriteString(`"]`)
+
+	return connection.WriteMessage(websocket.TextMessage, buffer.Bytes())
 }
 
 func readEmptyMessage(connection *websocket.Conn) error {
