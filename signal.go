@@ -40,13 +40,19 @@ type addressBook interface {
 	AddAddr(p peer.ID, addr ma.Multiaddr, ttl time.Duration)
 }
 
-func newSignal(maddr ma.Multiaddr, addressBook addressBook, configuration SignalConfiguration) (*signal, error) {
+func newSignal(maddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, configuration SignalConfiguration) (*signal, error) {
 	url, err := createSignalURL(maddr.Decapsulate(protocolMultiaddr), configuration)
 	if err != nil {
 		return nil, err
 	}
+
+	peerMultiaddr, err := createPeerMultiaddr(maddr, peerID)
+	if err != nil {
+		return nil, err
+	}
+
 	stopCh := make(chan struct{})
-	accepted := startClient(url, addressBook, stopCh)
+	accepted := startClient(url, addressBook, peerMultiaddr, stopCh)
 	return &signal{
 		accepted: accepted,
 		stopCh: stopCh,
@@ -66,6 +72,14 @@ func createSignalURL(addr ma.Multiaddr, configuration SignalConfiguration) (stri
 	return buf.String(), nil
 }
 
+func createPeerMultiaddr(addr ma.Multiaddr, peerID peer.ID) (ma.Multiaddr, error) {
+	ipfsMultiaddr, err := ma.NewMultiaddr("/ipfs/" + peerID.String())
+	if err != nil {
+		logger.Fatal(err)
+	}
+	return addr.Encapsulate(ipfsMultiaddr), nil
+}
+
 func readProtocolForSignalURL(maddr ma.Multiaddr) string {
 	if _, err := maddr.ValueForProtocol(wssProtocolCode); err == nil {
 		return "wss://"
@@ -73,7 +87,7 @@ func readProtocolForSignalURL(maddr ma.Multiaddr) string {
 	return "ws://"
 }
 
-func startClient(url string, addressBook addressBook, stopCh chan struct{}) <-chan transport.CapableConn {
+func startClient(url string, addressBook addressBook, peerMultiaddr ma.Multiaddr, stopCh chan struct{}) <-chan transport.CapableConn {
 	logger.Debugf("Use signal server: %s", url)
 
 	accepted := make(chan transport.CapableConn)
@@ -96,7 +110,7 @@ func startClient(url string, addressBook addressBook, stopCh chan struct{}) <-ch
 				}
 				logger.Debugf("Connection to signal server established")
 
-				sp, err = openSession(connection)
+				sp, err = openSession(connection, peerMultiaddr)
 				if err != nil {
 					logger.Errorf("Can't open session: %v", err)
 					connection = nil
@@ -118,7 +132,7 @@ func startClient(url string, addressBook addressBook, stopCh chan struct{}) <-ch
 	return accepted
 }
 
-func openSession(connection *websocket.Conn) (*sessionProperties, error) {
+func openSession(connection *websocket.Conn, peerMultiaddr ma.Multiaddr) (*sessionProperties, error) {
 	message, err := readMessage(connection)
 	if err != nil {
 		return nil, err
@@ -167,8 +181,8 @@ func openSession(connection *websocket.Conn) (*sessionProperties, error) {
 		}
 	}()
 
-	logger.Debugf("%s: Join the network", sp.SID)
-	err = sendMessage(connection, ssJoinMessageType, "/kopytko")
+	logger.Debugf("%s: Join the network (peerID: %s)", sp.SID, peerMultiaddr.String())
+	err = sendMessage(connection, ssJoinMessageType, peerMultiaddr.String())
 	if err != nil {
 		return nil, err
 	}

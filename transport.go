@@ -10,6 +10,7 @@ import (
 
 type Transport struct {
 	addressBook addressBook
+	peerID peer.ID
 	signalConfiguration SignalConfiguration
 }
 
@@ -25,7 +26,7 @@ func (t *Transport) CanDial(addr multiaddr.Multiaddr) bool {
 
 func (t *Transport) Listen(laddr multiaddr.Multiaddr) (transport.Listener, error) {
 	logger.Debugf("Listen on address: %s", laddr)
-	return newListener(laddr, t.addressBook, t.signalConfiguration)
+	return newListener(laddr, t.addressBook, t.peerID, t.signalConfiguration)
 }
 
 func (t *Transport) Protocols() []int {
@@ -38,6 +39,11 @@ func (t *Transport) Proxy() bool {
 
 func New() *Transport {
 	return new(Transport)
+}
+
+func (t *Transport) WithIdentity(peerID peer.ID) *Transport {
+	t.peerID = peerID
+	return t
 }
 
 func (t *Transport) WithPeerstore(a addressBook) *Transport {
