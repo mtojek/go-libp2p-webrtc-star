@@ -41,7 +41,7 @@ func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 	identity := mustCreatePeerIdentity(t, privKey)
 	peerstore := pstoremem.NewPeerstore()
 
-	starTransport := star.New().
+	starTransport := star.New(). // TODO Identity and peerstore required args
 		WithIdentity(identity).
 		WithPeerstore(peerstore).
 		WithSignalConfiguration(star.SignalConfiguration{
