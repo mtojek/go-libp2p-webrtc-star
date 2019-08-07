@@ -106,6 +106,7 @@ func startClient(url string, addressBook addressBook, peerMultiaddr ma.Multiaddr
 				connection, err = openConnection(url)
 				if err != nil {
 					logger.Errorf("Can't establish connection: %v", err)
+					time.Sleep(60 * time.Second)
 					continue
 				}
 				logger.Debugf("Connection to signal server established")

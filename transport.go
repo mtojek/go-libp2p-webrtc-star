@@ -37,18 +37,11 @@ func (t *Transport) Proxy() bool {
 	return false
 }
 
-func New() *Transport {
-	return new(Transport)
-}
-
-func (t *Transport) WithIdentity(peerID peer.ID) *Transport {
-	t.peerID = peerID
-	return t
-}
-
-func (t *Transport) WithPeerstore(a addressBook) *Transport {
-	t.addressBook = a
-	return t
+func New(peerID peer.ID, peerstore addressBook) *Transport {
+	return &Transport{
+		peerID: peerID,
+		addressBook: peerstore,
+	}
 }
 
 func (t *Transport) WithSignalConfiguration(c SignalConfiguration) *Transport {

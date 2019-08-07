@@ -41,9 +41,7 @@ func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 	identity := mustCreatePeerIdentity(t, privKey)
 	peerstore := pstoremem.NewPeerstore()
 
-	starTransport := star.New(). // TODO Identity and peerstore required args
-		WithIdentity(identity).
-		WithPeerstore(peerstore).
+	starTransport := star.New(identity, peerstore).
 		WithSignalConfiguration(star.SignalConfiguration{
 			URLPath: "/socket.io/?EIO=3&transport=websocket",
 		})
