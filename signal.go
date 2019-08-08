@@ -16,14 +16,14 @@ import (
 
 const (
 	maxMessageSize = 2048
-	messagePrefix = "42"
+	messagePrefix  = "42"
 
 	ssJoinMessageType = "ss-join"
 )
 
 type signal struct {
 	accepted <-chan transport.CapableConn
-	stopCh chan<- struct{}
+	stopCh   chan<- struct{}
 }
 
 type SignalConfiguration struct {
@@ -31,9 +31,9 @@ type SignalConfiguration struct {
 }
 
 type sessionProperties struct {
-	SID string `json:"sid"`
-	PingIntervalMillis int64 `json:"pingInterval"`
-	PingTimeoutMillis int64 `json:"pingTimeout"`
+	SID                string `json:"sid"`
+	PingIntervalMillis int64  `json:"pingInterval"`
+	PingTimeoutMillis  int64  `json:"pingTimeout"`
 }
 
 type addressBook interface {
@@ -55,7 +55,7 @@ func newSignal(maddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, conf
 	accepted := startClient(url, addressBook, peerMultiaddr, stopCh)
 	return &signal{
 		accepted: accepted,
-		stopCh: stopCh,
+		stopCh:   stopCh,
 	}, nil
 }
 
@@ -106,7 +106,7 @@ func startClient(url string, addressBook addressBook, peerMultiaddr ma.Multiaddr
 				connection, err = openConnection(url)
 				if err != nil {
 					logger.Errorf("Can't establish connection: %v", err)
-					time.Sleep(60 * time.Second)
+					time.Sleep(3 * time.Second)
 					continue
 				}
 				logger.Debugf("Connection to signal server established")
@@ -127,7 +127,7 @@ func startClient(url string, addressBook addressBook, peerMultiaddr ma.Multiaddr
 				connection = nil
 				continue
 			}
-			logger.Debugf("%s: Message: %s", sp.SID, message)
+			logger.Debugf("%s: Received message: %s", sp.SID, message)
 		}
 	}()
 	return accepted
@@ -182,7 +182,7 @@ func openSession(connection *websocket.Conn, peerMultiaddr ma.Multiaddr) (*sessi
 		}
 	}()
 
-	logger.Debugf("%s: Join the network (peerID: %s)", sp.SID, peerMultiaddr.String())
+	logger.Debugf("%s: Join network (peerID: %s)", sp.SID, peerMultiaddr.String())
 	err = sendMessage(connection, ssJoinMessageType, peerMultiaddr.String())
 	if err != nil {
 		return nil, err
@@ -196,7 +196,7 @@ func readMessage(connection *websocket.Conn) ([]byte, error) {
 		return nil, err
 	}
 
-	i := bytes.IndexByte(message, '{')
+	i := bytes.IndexAny(message, "[{")
 	if i < 0 {
 		return nil, errors.New("message token not found")
 	}
@@ -208,6 +208,7 @@ func sendMessage(connection *websocket.Conn, messageType string, messageBody int
 	buffer.WriteString(messagePrefix)
 	buffer.WriteString(`["`)
 	buffer.WriteString(messageType)
+	buffer.WriteByte('"')
 
 	if messageBody != nil {
 		b, err := json.Marshal(messageBody)
@@ -215,12 +216,10 @@ func sendMessage(connection *websocket.Conn, messageType string, messageBody int
 			return err
 		}
 
-		buffer.WriteString(`","`)
+		buffer.WriteByte(',')
 		buffer.Write(b)
 	}
-
-	buffer.WriteString(`"]`)
-
+	buffer.WriteByte(']')
 	return connection.WriteMessage(websocket.TextMessage, buffer.Bytes())
 }
 
@@ -237,13 +236,12 @@ func readEmptyMessage(connection *websocket.Conn) error {
 	return nil
 }
 
-
 func stopSignalReceived(stopCh chan struct{}) bool {
 	select {
-		case <-stopCh:
-			return true
-		default:
-			return false
+	case <-stopCh:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -259,7 +257,7 @@ func openConnection(url string) (*websocket.Conn, error) {
 }
 
 func (s *signal) Accept() (transport.CapableConn, error) {
-	return <- s.accepted, nil
+	return <-s.accepted, nil
 }
 
 func (s *signal) Close() error {

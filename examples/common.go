@@ -20,12 +20,7 @@ import (
 
 const (
 	protocolID     = "/p2p-webrtc-star/1.0.0"
-	// FIXME invalid hosts below
-	//firstSignalAddr = "/dns4/star-signal.cloud.ipfs.team/tcp/443/wss/p2p-webrtc-star"
-	//secondSignalAddr = "/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
-	firstSignalAddr = "/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
-	secondSignalAddr = "/dns4/ws-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
-
+	firstSignalAddr = "/dns4/localhost/tcp/9090/ws/p2p-webrtc-star"
 	waitForStreamTimeout = 60 * time.Minute
 )
 
@@ -34,8 +29,7 @@ func init() {
 }
 
 func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
-	firstSignalMultiaddr := mustCreateSignalAddr(t, firstSignalAddr)
-	secondSignalMultiaddr := mustCreateSignalAddr(t, secondSignalAddr)
+	signalMultiaddr := mustCreateSignalAddr(t, firstSignalAddr)
 
 	privKey := mustCreatePrivateKey(t)
 	identity := mustCreatePeerIdentity(t, privKey)
@@ -48,7 +42,7 @@ func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 
 	h, err := libp2p.New(ctx,
 		libp2p.Identity(privKey),
-		libp2p.ListenAddrs(firstSignalMultiaddr, secondSignalMultiaddr),
+		libp2p.ListenAddrs(signalMultiaddr),
 		libp2p.Peerstore(peerstore),
 		libp2p.Transport(starTransport))
 	require.NoError(t, err)
