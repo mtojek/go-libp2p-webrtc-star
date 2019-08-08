@@ -128,6 +128,11 @@ func startClient(url string, addressBook addressBook, peerMultiaddr ma.Multiaddr
 				continue
 			}
 			logger.Debugf("%s: Received message: %s", sp.SID, message)
+			err = processMessage(addressBook, message)
+			if err != nil {
+				logger.Errorf("%s: Can't process message: %v", sp.SID, err)
+				continue
+			}
 		}
 	}()
 	return accepted
@@ -201,6 +206,42 @@ func readMessage(connection *websocket.Conn) ([]byte, error) {
 		return nil, errors.New("message token not found")
 	}
 	return message[i:], nil
+}
+
+func processMessage(addressBook addressBook, message []byte) error {
+	if bytes.Index(message, []byte(`["ws-peer",`)) > -1 {
+		var m []string
+		err := json.Unmarshal(message, &m)
+		if err != nil {
+			return err
+		}
+		return processWsPeerMessage(addressBook, m)
+	}
+	return errors.New("tried to processed unknown message")
+}
+
+func processWsPeerMessage(addressBook addressBook, wsPeerMessage []string) error {
+	if len(wsPeerMessage) < 2 {
+		return errors.New("missing peer information")
+	}
+
+	ipfsMultiaddr, err := ma.NewMultiaddr(wsPeerMessage[1])
+	if err != nil {
+		return err
+	}
+
+	value, err := ipfsMultiaddr.ValueForProtocol(ma.P_IPFS)
+	if err != nil {
+		return err
+	}
+
+	peerID, err := peer.IDB58Decode(value)
+	if err != nil {
+		return err
+	}
+
+	addressBook.AddAddr(peerID, ipfsMultiaddr, 60 * time.Second)
+	return nil
 }
 
 func sendMessage(connection *websocket.Conn, messageType string, messageBody interface{}) error {

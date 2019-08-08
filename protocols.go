@@ -14,7 +14,6 @@ const (
 )
 
 var (
-
 	protocol = ma.Protocol{
 		Code:  protocolCode,
 		Name:  protocolName,
