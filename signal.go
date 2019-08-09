@@ -40,6 +40,19 @@ type addressBook interface {
 	AddAddr(p peer.ID, addr ma.Multiaddr, ttl time.Duration)
 }
 
+type selfIgnoreAddressBook struct {
+	addressBook addressBook
+	ownPeerID peer.ID
+}
+
+func (siab *selfIgnoreAddressBook) AddAddr(p peer.ID, addr ma.Multiaddr, ttl time.Duration) {
+	if p == siab.ownPeerID {
+		logger.Debugf("Do not add own peer ID to the address book (ID: %v)", p)
+		return
+	}
+	siab.addressBook.AddAddr(p, addr, ttl)
+}
+
 func newSignal(maddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, configuration SignalConfiguration) (*signal, error) {
 	url, err := createSignalURL(maddr.Decapsulate(protocolMultiaddr), configuration)
 	if err != nil {
@@ -51,12 +64,20 @@ func newSignal(maddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, conf
 		return nil, err
 	}
 
+	smartAddressBook := decorateSelfIgnoreAddressBook(addressBook, peerID)
 	stopCh := make(chan struct{})
-	accepted := startClient(url, addressBook, peerMultiaddr, stopCh)
+	accepted := startClient(url, smartAddressBook, peerMultiaddr, stopCh)
 	return &signal{
 		accepted: accepted,
 		stopCh:   stopCh,
 	}, nil
+}
+
+func decorateSelfIgnoreAddressBook(addressBook addressBook, peerID peer.ID) addressBook {
+	return &selfIgnoreAddressBook{
+		addressBook: addressBook,
+		ownPeerID: peerID,
+	}
 }
 
 func createSignalURL(addr ma.Multiaddr, configuration SignalConfiguration) (string, error) {
@@ -225,12 +246,12 @@ func processWsPeerMessage(addressBook addressBook, wsPeerMessage []string) error
 		return errors.New("missing peer information")
 	}
 
-	ipfsMultiaddr, err := ma.NewMultiaddr(wsPeerMessage[1])
+	peerMultiaddr, err := ma.NewMultiaddr(wsPeerMessage[1])
 	if err != nil {
 		return err
 	}
 
-	value, err := ipfsMultiaddr.ValueForProtocol(ma.P_IPFS)
+	value, err := peerMultiaddr.ValueForProtocol(ma.P_IPFS)
 	if err != nil {
 		return err
 	}
@@ -240,7 +261,12 @@ func processWsPeerMessage(addressBook addressBook, wsPeerMessage []string) error
 		return err
 	}
 
-	addressBook.AddAddr(peerID, ipfsMultiaddr, 60 * time.Second)
+	ipfsMultiaddr, err := ma.NewMultiaddr("/ipfs/" + peerID.String())
+	if err != nil {
+		return err
+	}
+
+	addressBook.AddAddr(peerID, peerMultiaddr.Decapsulate(ipfsMultiaddr), 60 * time.Second)
 	return nil
 }
 

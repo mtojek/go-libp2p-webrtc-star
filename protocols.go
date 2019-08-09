@@ -9,6 +9,7 @@ const (
 	protocolCode = 499
 	protocolName = "p2p-webrtc-star"
 
+	wsProtocolCode = 477
 	wssProtocolCode = 498
 	wssProtocolName = "wss"
 )
@@ -20,14 +21,13 @@ var (
 		VCode: ma.CodeToVarint(protocolCode),
 	}
 	protocolMultiaddr ma.Multiaddr
-	format = mafmt.And(wssFormat, mafmt.Base(protocolCode))
+	format = mafmt.And(mafmt.TCP, mafmt.Or(mafmt.Base(wssProtocol.Code), mafmt.Base(wsProtocolCode)), mafmt.Base(protocolCode))
 
 	wssProtocol = ma.Protocol{
 		Code:  wssProtocolCode,
 		Name:  wssProtocolName,
 		VCode: ma.CodeToVarint(wssProtocolCode),
 	}
-	wssFormat = mafmt.And(mafmt.TCP, mafmt.Base(wssProtocol.Code))
 )
 
 func init() {
