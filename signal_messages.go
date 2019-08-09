@@ -21,7 +21,7 @@ func processMessage(addressBook addressBook, message []byte) error {
 		}
 		return processWsPeerMessage(addressBook, m)
 	}
-	return errors.New("tried to processed unknown message")
+	return errors.New("tried to process unknown message")
 }
 
 func processWsPeerMessage(addressBook addressBook, wsPeerMessage []string) error {
