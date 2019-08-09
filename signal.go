@@ -1,9 +1,8 @@
 package star
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -36,25 +35,8 @@ type sessionProperties struct {
 	PingTimeoutMillis  int64  `json:"pingTimeout"`
 }
 
-type addressBook interface {
-	AddAddr(p peer.ID, addr ma.Multiaddr, ttl time.Duration)
-}
-
-type selfIgnoreAddressBook struct {
-	addressBook addressBook
-	ownPeerID peer.ID
-}
-
-func (siab *selfIgnoreAddressBook) AddAddr(p peer.ID, addr ma.Multiaddr, ttl time.Duration) {
-	if p == siab.ownPeerID {
-		logger.Debugf("Do not add own peer ID to the address book (ID: %v)", p)
-		return
-	}
-	siab.addressBook.AddAddr(p, addr, ttl)
-}
-
 func newSignal(maddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, configuration SignalConfiguration) (*signal, error) {
-	url, err := createSignalURL(maddr.Decapsulate(protocolMultiaddr), configuration)
+	url, err := createSignalURL(maddr, configuration)
 	if err != nil {
 		return nil, err
 	}
@@ -73,18 +55,13 @@ func newSignal(maddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, conf
 	}, nil
 }
 
-func decorateSelfIgnoreAddressBook(addressBook addressBook, peerID peer.ID) addressBook {
-	return &selfIgnoreAddressBook{
-		addressBook: addressBook,
-		ownPeerID: peerID,
-	}
-}
-
 func createSignalURL(addr ma.Multiaddr, configuration SignalConfiguration) (string, error) {
-	var buf strings.Builder
-	buf.WriteString(readProtocolForSignalURL(addr))
+	websocketAddr := addr.Decapsulate(protocolMultiaddr)
 
-	_, hostPort, err := manet.DialArgs(addr)
+	var buf strings.Builder
+	buf.WriteString(readProtocolForSignalURL(websocketAddr))
+
+	_, hostPort, err := manet.DialArgs(websocketAddr)
 	if err != nil {
 		return "", err
 	}
@@ -93,12 +70,12 @@ func createSignalURL(addr ma.Multiaddr, configuration SignalConfiguration) (stri
 	return buf.String(), nil
 }
 
-func createPeerMultiaddr(addr ma.Multiaddr, peerID peer.ID) (ma.Multiaddr, error) {
-	ipfsMultiaddr, err := ma.NewMultiaddr("/ipfs/" + peerID.String())
+func createPeerMultiaddr(signalAddr ma.Multiaddr, peerID peer.ID) (ma.Multiaddr, error) {
+	ipfsMultiaddr, err := ma.NewMultiaddr(fmt.Sprintf("/%s/%s", ipfsProtocolName, peerID.String()))
 	if err != nil {
 		logger.Fatal(err)
 	}
-	return addr.Encapsulate(ipfsMultiaddr), nil
+	return signalAddr.Encapsulate(ipfsMultiaddr), nil
 }
 
 func readProtocolForSignalURL(maddr ma.Multiaddr) string {
@@ -208,99 +185,12 @@ func openSession(connection *websocket.Conn, peerMultiaddr ma.Multiaddr) (*sessi
 		}
 	}()
 
-	logger.Debugf("%s: Join network (peerID: %s)", sp.SID, peerMultiaddr.String())
+	logger.Debugf("%s: Join peer network (peerID: %s)", sp.SID, peerMultiaddr.String())
 	err = sendMessage(connection, ssJoinMessageType, peerMultiaddr.String())
 	if err != nil {
 		return nil, err
 	}
 	return &sp, nil
-}
-
-func readMessage(connection *websocket.Conn) ([]byte, error) {
-	_, message, err := connection.ReadMessage()
-	if err != nil {
-		return nil, err
-	}
-
-	i := bytes.IndexAny(message, "[{")
-	if i < 0 {
-		return nil, errors.New("message token not found")
-	}
-	return message[i:], nil
-}
-
-func processMessage(addressBook addressBook, message []byte) error {
-	if bytes.Index(message, []byte(`["ws-peer",`)) > -1 {
-		var m []string
-		err := json.Unmarshal(message, &m)
-		if err != nil {
-			return err
-		}
-		return processWsPeerMessage(addressBook, m)
-	}
-	return errors.New("tried to processed unknown message")
-}
-
-func processWsPeerMessage(addressBook addressBook, wsPeerMessage []string) error {
-	if len(wsPeerMessage) < 2 {
-		return errors.New("missing peer information")
-	}
-
-	peerMultiaddr, err := ma.NewMultiaddr(wsPeerMessage[1])
-	if err != nil {
-		return err
-	}
-
-	value, err := peerMultiaddr.ValueForProtocol(ma.P_IPFS)
-	if err != nil {
-		return err
-	}
-
-	peerID, err := peer.IDB58Decode(value)
-	if err != nil {
-		return err
-	}
-
-	ipfsMultiaddr, err := ma.NewMultiaddr("/ipfs/" + peerID.String())
-	if err != nil {
-		return err
-	}
-
-	addressBook.AddAddr(peerID, peerMultiaddr.Decapsulate(ipfsMultiaddr), 60 * time.Second)
-	return nil
-}
-
-func sendMessage(connection *websocket.Conn, messageType string, messageBody interface{}) error {
-	var buffer bytes.Buffer
-	buffer.WriteString(messagePrefix)
-	buffer.WriteString(`["`)
-	buffer.WriteString(messageType)
-	buffer.WriteByte('"')
-
-	if messageBody != nil {
-		b, err := json.Marshal(messageBody)
-		if err != nil {
-			return err
-		}
-
-		buffer.WriteByte(',')
-		buffer.Write(b)
-	}
-	buffer.WriteByte(']')
-	return connection.WriteMessage(websocket.TextMessage, buffer.Bytes())
-}
-
-func readEmptyMessage(connection *websocket.Conn) error {
-	_, message, err := connection.ReadMessage()
-	if err != nil {
-		return err
-	}
-
-	i := bytes.IndexByte(message, '{')
-	if i > 0 {
-		return errors.New("empty message expected")
-	}
-	return nil
 }
 
 func stopSignalReceived(stopCh chan struct{}) bool {

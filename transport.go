@@ -16,6 +16,8 @@ type Transport struct {
 var _ transport.Transport = new(Transport)
 
 func (t *Transport) Dial(ctx context.Context, raddr multiaddr.Multiaddr, p peer.ID) (transport.CapableConn, error) {
+	logger.Debugf("Dial peer (ID: %s, address: %v)", p, raddr)
+	// TODO Map with available signal servers
 	panic("implement me: Dial")
 }
 

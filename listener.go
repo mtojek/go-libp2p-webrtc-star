@@ -18,8 +18,6 @@ var _ transport.Listener = new(listener)
 
 func newListener(address ma.Multiaddr, addressBook addressBook, peerID peer.ID, signalConfiguration SignalConfiguration) (*listener, error) {
 	logger.Debugf("Create new listener (address: %s)", address)
-	// TODO Will be moved to transport
-	// TODO One signal per listener
 	signal, err := newSignal(address, addressBook, peerID, signalConfiguration)
 	if err != nil {
 		return nil, err
