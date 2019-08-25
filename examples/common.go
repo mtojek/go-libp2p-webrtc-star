@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/mtojek/go-libp2p-webrtc-star/testutils"
+	"github.com/pion/webrtc"
 	"testing"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 
 const (
 	//firstSignalAddr = "/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
-	firstSignalAddr = "/dns4/localhost/tcp/9090/ws/p2p-webrtc-star"
+	firstSignalAddr      = "/dns4/localhost/tcp/9090/ws/p2p-webrtc-star"
 	waitForStreamTimeout = 60 * time.Minute
 )
 
@@ -35,6 +36,19 @@ func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 	starTransport := star.New(identity, peerstore).
 		WithSignalConfiguration(star.SignalConfiguration{
 			URLPath: "/socket.io/?EIO=3&transport=websocket",
+		}).
+		WithWebRTCConfiguration(webrtc.Configuration{
+			ICEServers: []webrtc.ICEServer{
+				{
+					URLs: []string{
+						"stun:stun.l.google.com:19302",
+						"stun:stun1.l.google.com:19302",
+						"stun:stun2.l.google.com:19302",
+						"stun:stun3.l.google.com:19302",
+						"stun:stun4.l.google.com:19302",
+					},
+				},
+			},
 		})
 
 	h, err := libp2p.New(ctx,

@@ -16,6 +16,7 @@ type Transport struct {
 	addressBook addressBook
 	peerID peer.ID
 	signalConfiguration SignalConfiguration
+	webRTCConfiguration webrtc.Configuration
 }
 
 var _ transport.Transport = new(Transport)
@@ -27,7 +28,11 @@ func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tr
 		return nil, err
 	}
 
-	peerConnection, err := webrtc.NewPeerConnection(webrtc.Configuration{})
+	peerConnection, err := webrtc.NewPeerConnection(t.webRTCConfiguration)
+	if err != nil {
+		return nil, err
+	}
+
 	offerDescription, err := peerConnection.CreateOffer(nil)
 	if err != nil {
 		return nil, err
@@ -103,5 +108,10 @@ func New(peerID peer.ID, peerstore addressBook) *Transport {
 
 func (t *Transport) WithSignalConfiguration(c SignalConfiguration) *Transport {
 	t.signalConfiguration = c
+	return t
+}
+
+func (t *Transport) WithWebRTCConfiguration(c webrtc.Configuration) *Transport {
+	t.webRTCConfiguration = c
 	return t
 }
