@@ -11,10 +11,11 @@ import (
 
 type Transport struct {
 	signals map[string]*signal
-	m sync.RWMutex
+	m       sync.RWMutex
 
 	addressBook addressBook
-	peerID peer.ID
+	peerID      peer.ID
+
 	signalConfiguration SignalConfiguration
 	webRTCConfiguration webrtc.Configuration
 }
@@ -100,8 +101,8 @@ func (t *Transport) Proxy() bool {
 
 func New(peerID peer.ID, peerstore addressBook) *Transport {
 	return &Transport{
-		signals: map[string]*signal{},
-		peerID: peerID,
+		signals:     map[string]*signal{},
+		peerID:      peerID,
 		addressBook: peerstore,
 	}
 }
