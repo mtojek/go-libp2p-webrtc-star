@@ -213,6 +213,10 @@ func openConnection(url string) (*websocket.Conn, error) {
 	return connection, err
 }
 
+func (s *signal) Handshake() {
+	return
+}
+
 func (s *signal) Accept() (transport.CapableConn, error) {
 	return <-s.accepted, nil
 }

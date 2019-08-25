@@ -1,7 +1,6 @@
 package star
 
 import (
-	"github.com/libp2p/go-libp2p-core/peer"
 	"net"
 
 	"github.com/libp2p/go-libp2p-core/transport"
@@ -16,12 +15,8 @@ type listener struct {
 
 var _ transport.Listener = new(listener)
 
-func newListener(address ma.Multiaddr, addressBook addressBook, peerID peer.ID, signalConfiguration SignalConfiguration) (*listener, error) {
+func newListener(address ma.Multiaddr, signal *signal) (*listener, error) {
 	logger.Debugf("Create new listener (address: %s)", address)
-	signal, err := newSignal(address, addressBook, peerID, signalConfiguration)
-	if err != nil {
-		return nil, err
-	}
 	return &listener{
 		address: address,
 		signal: signal,
