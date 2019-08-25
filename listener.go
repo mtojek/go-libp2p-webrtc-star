@@ -25,12 +25,12 @@ func newListener(address ma.Multiaddr, signal *signal) (*listener, error) {
 
 func (l *listener) Accept() (transport.CapableConn, error) {
 	logger.Debug("Accept connection")
-	return l.signal.Accept()
+	return l.signal.accept()
 }
 
 func (l *listener) Close() error {
 	logger.Debug("Close listener")
-	return l.signal.Close()
+	return l.signal.close()
 }
 
 func (l *listener) Addr() net.Addr {

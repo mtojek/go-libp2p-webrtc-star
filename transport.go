@@ -5,6 +5,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/transport"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/pion/webrtc"
 	"sync"
 )
 
@@ -21,10 +22,29 @@ var _ transport.Transport = new(Transport)
 
 func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (transport.CapableConn, error) {
 	logger.Debugf("Dial peer (ID: %s, address: %v)", p, raddr)
-	_, err := t.getOrCreateSignal(raddr)
+	signal, err := t.getOrCreateSignal(raddr)
 	if err != nil {
 		return nil, err
 	}
+
+	peerConnection, err := webrtc.NewPeerConnection(webrtc.Configuration{})
+	offerDescription, err := peerConnection.CreateOffer(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Debugf("WebRTC offer description: %v", offerDescription.SDP)
+	answerDescription, err := signal.handshake(offerDescription)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Debugf("WebRTC answer description: %v", answerDescription.SDP)
+	err = peerConnection.SetRemoteDescription(answerDescription)
+	if err != nil {
+		return nil, err
+	}
+
 	panic("implement me: Dial")
 }
 

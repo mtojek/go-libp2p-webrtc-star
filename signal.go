@@ -3,6 +3,7 @@ package star
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pion/webrtc"
 	"strings"
 	"time"
 
@@ -213,15 +214,15 @@ func openConnection(url string) (*websocket.Conn, error) {
 	return connection, err
 }
 
-func (s *signal) Handshake() {
-	return
+func (s *signal) handshake(offer webrtc.SessionDescription) (webrtc.SessionDescription, error) {
+	return webrtc.SessionDescription{}, nil
 }
 
-func (s *signal) Accept() (transport.CapableConn, error) {
+func (s *signal) accept() (transport.CapableConn, error) {
 	return <-s.accepted, nil
 }
 
-func (s *signal) Close() error {
+func (s *signal) close() error {
 	return s.stopClient()
 }
 
