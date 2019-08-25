@@ -2,6 +2,7 @@ package examples
 
 import (
 	"context"
+	"github.com/libp2p/go-libp2p-core/protocol"
 	"sync"
 	"testing"
 
@@ -10,11 +11,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const peerMessagingSendSingleMessageProtocolID = protocol.ID("/peer-messaging-send-single-message/1.0.0")
+
 var helloWorldMessage = []byte("Hello world!")
 
 func TestSendSingleMessage(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	protocolID := peerMessagingSendSingleMessageProtocolID
 
 	firstHost := mustCreateHost(t, ctx)
 	secondHost := mustCreateHost(t, ctx)

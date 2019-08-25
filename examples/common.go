@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	protocolID     = "/examples/1.0.0"
 	//firstSignalAddr = "/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
 	firstSignalAddr = "/dns4/localhost/tcp/9090/ws/p2p-webrtc-star"
 	waitForStreamTimeout = 60 * time.Minute
