@@ -32,7 +32,12 @@ type signal struct {
 type outgoingHandshake struct {
 	destinationPeerID peer.ID
 	offer             webrtc.SessionDescription
-	answerCh          chan<- webrtc.SessionDescription
+	answerCh          chan<- handshakeAnswer
+}
+
+type handshakeAnswer struct {
+	sessionDescription webrtc.SessionDescription
+	err                error
 }
 
 type SignalConfiguration struct {
@@ -248,7 +253,7 @@ func (s *signal) dial(peerID peer.ID) (transport.CapableConn, error) {
 		return nil, err
 	}
 
-	answerCh := make(chan webrtc.SessionDescription)
+	answerCh := make(chan handshakeAnswer)
 
 	logger.Debugf("WebRTC offer description: %v", offerDescription.SDP)
 	s.outgoingHandshakesCh <- outgoingHandshake{
@@ -256,10 +261,13 @@ func (s *signal) dial(peerID peer.ID) (transport.CapableConn, error) {
 		offer:             offerDescription,
 		answerCh:          answerCh,
 	}
-	answerDescription := <-answerCh
+	answer := <-answerCh
+	if answer.err != nil {
+		return nil, err
+	}
 
-	logger.Debugf("WebRTC answer description: %v", answerDescription.SDP)
-	err = peerConnection.SetRemoteDescription(answerDescription)
+	logger.Debugf("WebRTC answer description: %v", answer.sessionDescription.SDP)
+	err = peerConnection.SetRemoteDescription(answer.sessionDescription)
 	if err != nil {
 		return nil, err
 	}
