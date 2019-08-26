@@ -28,30 +28,7 @@ func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tr
 	if err != nil {
 		return nil, err
 	}
-
-	peerConnection, err := webrtc.NewPeerConnection(t.webRTCConfiguration)
-	if err != nil {
-		return nil, err
-	}
-
-	offerDescription, err := peerConnection.CreateOffer(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Debugf("WebRTC offer description: %v", offerDescription.SDP)
-	answerDescription, err := signal.handshake(offerDescription)
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Debugf("WebRTC answer description: %v", answerDescription.SDP)
-	err = peerConnection.SetRemoteDescription(answerDescription)
-	if err != nil {
-		return nil, err
-	}
-
-	panic("implement me: Dial")
+	return signal.dial(p)
 }
 
 func (t *Transport) Listen(laddr ma.Multiaddr) (transport.Listener, error) {
@@ -75,7 +52,7 @@ func (t *Transport) getOrCreateSignal(addr ma.Multiaddr) (*signal, error) {
 	t.m.RUnlock()
 
 	if !ok {
-		signal, err = newSignal(addr, t.addressBook, t.peerID, t.signalConfiguration)
+		signal, err = newSignal(addr, t.addressBook, t.peerID, t.signalConfiguration, t.webRTCConfiguration)
 		if err != nil {
 			return nil, err
 		}

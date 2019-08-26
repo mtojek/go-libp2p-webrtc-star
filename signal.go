@@ -24,6 +24,8 @@ const (
 type signal struct {
 	accepted <-chan transport.CapableConn
 	stopCh   chan<- struct{}
+
+	webRTCConfiguration webrtc.Configuration
 }
 
 type SignalConfiguration struct {
@@ -36,8 +38,9 @@ type sessionProperties struct {
 	PingTimeoutMillis  int64  `json:"pingTimeout"`
 }
 
-func newSignal(maddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, configuration SignalConfiguration) (*signal, error) {
-	url, err := createSignalURL(maddr, configuration)
+func newSignal(maddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, signalConfiguration SignalConfiguration,
+	webRTCConfiguration webrtc.Configuration) (*signal, error) {
+	url, err := createSignalURL(maddr, signalConfiguration)
 	if err != nil {
 		return nil, err
 	}
@@ -51,8 +54,9 @@ func newSignal(maddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, conf
 	stopCh := make(chan struct{})
 	accepted := startClient(url, smartAddressBook, peerMultiaddr, stopCh)
 	return &signal{
-		accepted: accepted,
-		stopCh:   stopCh,
+		accepted:            accepted,
+		stopCh:              stopCh,
+		webRTCConfiguration: webRTCConfiguration,
 	}, nil
 }
 
@@ -214,8 +218,28 @@ func openConnection(url string) (*websocket.Conn, error) {
 	return connection, err
 }
 
-func (s *signal) handshake(offer webrtc.SessionDescription) (webrtc.SessionDescription, error) {
-	return webrtc.SessionDescription{}, nil
+func (s *signal) dial(peerID peer.ID) (transport.CapableConn, error) {
+	peerConnection, err := webrtc.NewPeerConnection(s.webRTCConfiguration)
+	if err != nil {
+		return nil, err
+	}
+
+	offerDescription, err := peerConnection.CreateOffer(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Debugf("WebRTC offer description: %v", offerDescription.SDP)
+
+	// TODO call peer
+
+	/*logger.Debugf("WebRTC answer description: %v", answerDescription.SDP)
+	err = peerConnection.SetRemoteDescription(answerDescription)
+	if err != nil {
+		return nil, err
+	}*/
+
+	panic("implement me")
 }
 
 func (s *signal) accept() (transport.CapableConn, error) {
