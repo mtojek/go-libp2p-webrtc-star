@@ -22,10 +22,17 @@ const (
 )
 
 type signal struct {
-	accepted <-chan transport.CapableConn
-	stopCh   chan<- struct{}
+	acceptedCh           <-chan transport.CapableConn
+	outgoingHandshakesCh chan outgoingHandshake
+	stopCh               chan<- struct{}
 
 	webRTCConfiguration webrtc.Configuration
+}
+
+type outgoingHandshake struct {
+	destinationPeerID peer.ID
+	offer             webrtc.SessionDescription
+	answerCh          chan<- webrtc.SessionDescription
 }
 
 type SignalConfiguration struct {
@@ -38,25 +45,27 @@ type sessionProperties struct {
 	PingTimeoutMillis  int64  `json:"pingTimeout"`
 }
 
-func newSignal(maddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, signalConfiguration SignalConfiguration,
+func newSignal(signalMultiaddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, signalConfiguration SignalConfiguration,
 	webRTCConfiguration webrtc.Configuration) (*signal, error) {
-	url, err := createSignalURL(maddr, signalConfiguration)
+	url, err := createSignalURL(signalMultiaddr, signalConfiguration)
 	if err != nil {
 		return nil, err
 	}
 
-	peerMultiaddr, err := createPeerMultiaddr(maddr, peerID)
+	peerMultiaddr, err := createPeerMultiaddr(signalMultiaddr, peerID)
 	if err != nil {
 		return nil, err
 	}
 
 	smartAddressBook := decorateSelfIgnoreAddressBook(addressBook, peerID)
+	outgoingHandshakesCh := make(chan outgoingHandshake)
 	stopCh := make(chan struct{})
-	accepted := startClient(url, smartAddressBook, peerMultiaddr, stopCh)
+	acceptedCh := startClient(url, signalMultiaddr, peerMultiaddr, smartAddressBook, outgoingHandshakesCh, stopCh)
 	return &signal{
-		accepted:            accepted,
-		stopCh:              stopCh,
-		webRTCConfiguration: webRTCConfiguration,
+		acceptedCh:           acceptedCh,
+		outgoingHandshakesCh: outgoingHandshakesCh,
+		stopCh:               stopCh,
+		webRTCConfiguration:  webRTCConfiguration,
 	}, nil
 }
 
@@ -75,12 +84,12 @@ func createSignalURL(addr ma.Multiaddr, configuration SignalConfiguration) (stri
 	return buf.String(), nil
 }
 
-func createPeerMultiaddr(signalAddr ma.Multiaddr, peerID peer.ID) (ma.Multiaddr, error) {
+func createPeerMultiaddr(signalMultiaddr ma.Multiaddr, peerID peer.ID) (ma.Multiaddr, error) {
 	ipfsMultiaddr, err := ma.NewMultiaddr(fmt.Sprintf("/%s/%s", ipfsProtocolName, peerID.String()))
 	if err != nil {
 		logger.Fatal(err)
 	}
-	return signalAddr.Encapsulate(ipfsMultiaddr), nil
+	return signalMultiaddr.Encapsulate(ipfsMultiaddr), nil
 }
 
 func readProtocolForSignalURL(maddr ma.Multiaddr) string {
@@ -90,10 +99,11 @@ func readProtocolForSignalURL(maddr ma.Multiaddr) string {
 	return "ws://"
 }
 
-func startClient(url string, addressBook addressBook, peerMultiaddr ma.Multiaddr, stopCh chan struct{}) <-chan transport.CapableConn {
+func startClient(url string, signalMultiaddr ma.Multiaddr, peerMultiaddr ma.Multiaddr, addressBook addressBook,
+	outgoingHandshakesCh <-chan outgoingHandshake, stopCh <-chan struct{}) <-chan transport.CapableConn {
 	logger.Debugf("Use signal server: %s", url)
 
-	accepted := make(chan transport.CapableConn)
+	acceptedCh := make(chan transport.CapableConn)
 	go func() {
 		var connection *websocket.Conn
 		var sp *sessionProperties
@@ -124,6 +134,10 @@ func startClient(url string, addressBook addressBook, peerMultiaddr ma.Multiaddr
 
 			logger.Debugf("%s: Connection is healthy.", sp.SID)
 
+			if handshake, ok := nextOutgoingHandshake(outgoingHandshakesCh); ok {
+				fmt.Println(handshake, ok)
+			}
+
 			message, err := readMessage(connection)
 			if err != nil {
 				logger.Errorf("%s: Can't read message: %v", sp.SID, err)
@@ -138,7 +152,7 @@ func startClient(url string, addressBook addressBook, peerMultiaddr ma.Multiaddr
 			}
 		}
 	}()
-	return accepted
+	return acceptedCh
 }
 
 func openSession(connection *websocket.Conn, peerMultiaddr ma.Multiaddr) (*sessionProperties, error) {
@@ -198,7 +212,7 @@ func openSession(connection *websocket.Conn, peerMultiaddr ma.Multiaddr) (*sessi
 	return &sp, nil
 }
 
-func stopSignalReceived(stopCh chan struct{}) bool {
+func stopSignalReceived(stopCh <-chan struct{}) bool {
 	select {
 	case <-stopCh:
 		return true
@@ -218,6 +232,11 @@ func openConnection(url string) (*websocket.Conn, error) {
 	return connection, err
 }
 
+func nextOutgoingHandshake(outgoingHandshakeCh <-chan outgoingHandshake) (outgoingHandshake, bool) {
+	fmt.Println(outgoingHandshakeCh)
+	return outgoingHandshake{}, false
+}
+
 func (s *signal) dial(peerID peer.ID) (transport.CapableConn, error) {
 	peerConnection, err := webrtc.NewPeerConnection(s.webRTCConfiguration)
 	if err != nil {
@@ -229,21 +248,27 @@ func (s *signal) dial(peerID peer.ID) (transport.CapableConn, error) {
 		return nil, err
 	}
 
+	answerCh := make(chan webrtc.SessionDescription)
+
 	logger.Debugf("WebRTC offer description: %v", offerDescription.SDP)
+	s.outgoingHandshakesCh <- outgoingHandshake{
+		destinationPeerID: peerID,
+		offer:             offerDescription,
+		answerCh:          answerCh,
+	}
+	answerDescription := <-answerCh
 
-	// TODO call peer
-
-	/*logger.Debugf("WebRTC answer description: %v", answerDescription.SDP)
+	logger.Debugf("WebRTC answer description: %v", answerDescription.SDP)
 	err = peerConnection.SetRemoteDescription(answerDescription)
 	if err != nil {
 		return nil, err
-	}*/
+	}
 
 	panic("implement me")
 }
 
 func (s *signal) accept() (transport.CapableConn, error) {
-	return <-s.accepted, nil
+	return <-s.acceptedCh, nil
 }
 
 func (s *signal) close() error {
