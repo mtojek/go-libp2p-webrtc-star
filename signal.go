@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	maxMessageSize = 2048
+	maxMessageSize = 8192
 	messagePrefix  = "42"
 
-	ssJoinMessageType = "ss-join"
+	ssHandshakeMessageType = "ss-handshake"
+	ssJoinMessageType      = "ss-join"
 )
 
 type signal struct {
@@ -27,6 +28,10 @@ type signal struct {
 	stopCh               chan<- struct{}
 
 	webRTCConfiguration webrtc.Configuration
+}
+
+type SignalConfiguration struct {
+	URLPath string
 }
 
 type outgoingHandshake struct {
@@ -40,8 +45,21 @@ type handshakeAnswer struct {
 	err                error
 }
 
-type SignalConfiguration struct {
-	URLPath string
+type handshakeData struct {
+	IntentID     string                    `json:"intentId,omitempty"`
+	SrcMultiaddr string                    `json:"srcMultiaddr"`
+	DstMultiaddr string                    `json:"dstMultiaddr"`
+	Signal       webrtc.SessionDescription `json:"signal"`
+	Answer       bool                      `json:"answer,omitempty"`
+}
+
+func (hd *handshakeData) String() string {
+	m, err := json.Marshal(hd)
+	if err != nil {
+		logger.Error("can't marshal handshake data")
+		return ""
+	}
+	return string(m)
 }
 
 type sessionProperties struct {
@@ -129,7 +147,7 @@ func startClient(url string, signalMultiaddr ma.Multiaddr, peerMultiaddr ma.Mult
 				}
 				logger.Debugf("Connection to signal server established")
 
-				sp, err = openSession(connection, peerMultiaddr)
+				sp, err = openSession(connection, signalMultiaddr, peerMultiaddr, outgoingHandshakesCh)
 				if err != nil {
 					logger.Errorf("Can't open session: %v", err)
 					connection = nil
@@ -138,10 +156,6 @@ func startClient(url string, signalMultiaddr ma.Multiaddr, peerMultiaddr ma.Mult
 			}
 
 			logger.Debugf("%s: Connection is healthy.", sp.SID)
-
-			if handshake, ok := nextOutgoingHandshake(outgoingHandshakesCh); ok {
-				fmt.Println(handshake, ok)
-			}
 
 			message, err := readMessage(connection)
 			if err != nil {
@@ -152,7 +166,7 @@ func startClient(url string, signalMultiaddr ma.Multiaddr, peerMultiaddr ma.Mult
 			logger.Debugf("%s: Received message: %s", sp.SID, message)
 			err = processMessage(addressBook, message)
 			if err != nil {
-				logger.Errorf("%s: Can't process message: %v", sp.SID, err)
+				logger.Warningf("%s: Can't process message: %v", sp.SID, err)
 				continue
 			}
 		}
@@ -160,7 +174,7 @@ func startClient(url string, signalMultiaddr ma.Multiaddr, peerMultiaddr ma.Mult
 	return acceptedCh
 }
 
-func openSession(connection *websocket.Conn, peerMultiaddr ma.Multiaddr) (*sessionProperties, error) {
+func openSession(connection *websocket.Conn, signalMultiaddr ma.Multiaddr, peerMultiaddr ma.Multiaddr, outgoingHandshakesCh <-chan outgoingHandshake) (*sessionProperties, error) {
 	message, err := readMessage(connection)
 	if err != nil {
 		return nil, err
@@ -179,8 +193,7 @@ func openSession(connection *websocket.Conn, peerMultiaddr ma.Multiaddr) (*sessi
 	connection.SetReadLimit(maxMessageSize)
 	connection.SetPongHandler(func(string) error {
 		logger.Debugf("%s: Pong message received", sp.SID)
-		connection.SetReadDeadline(time.Time{})
-		return nil
+		return connection.SetReadDeadline(time.Time{})
 	})
 
 	err = readEmptyMessage(connection)
@@ -192,8 +205,14 @@ func openSession(connection *websocket.Conn, peerMultiaddr ma.Multiaddr) (*sessi
 		pingTicker := time.NewTicker(pingInterval)
 		for range pingTicker.C {
 			logger.Debugf("%s: Send ping message", sp.SID)
-			connection.SetReadDeadline(time.Now().Add(pingTimeout))
-			err := sendMessage(connection, "ping", nil) // Application layer ping?
+			err := connection.SetReadDeadline(time.Now().Add(pingTimeout))
+			if err != nil {
+				logger.Errorf("%s: Can't set connection read deadline: %v", sp.SID, err)
+				pingTicker.Stop()
+				return
+			}
+
+			err = sendMessage(connection, "ping", nil) // Application layer ping?
 			if err != nil {
 				logger.Errorf("%s: Can't send ping message: %v", sp.SID, err)
 				pingTicker.Stop()
@@ -214,7 +233,35 @@ func openSession(connection *websocket.Conn, peerMultiaddr ma.Multiaddr) (*sessi
 	if err != nil {
 		return nil, err
 	}
+
+	go func() {
+		for outgoingHandshake := range outgoingHandshakesCh {
+			dstMultiaddr, err := ma.NewMultiaddr(fmt.Sprintf("/%s/%s", ipfsProtocolName, outgoingHandshake.destinationPeerID.String()))
+			if err != nil {
+				logger.Errorf("%s: Invalid destination in handshake: %v", sp.SID, err)
+				continue
+			}
+			data := &handshakeData{
+				IntentID:     createRandomIntentID(),
+				DstMultiaddr: signalMultiaddr.Encapsulate(dstMultiaddr).String(),
+				SrcMultiaddr: peerMultiaddr.String(),
+				Signal:       outgoingHandshake.offer,
+			}
+			// TODO prevent handshake timeout
+			logger.Debugf("%s: Send handshake message: %v", sp.SID, data)
+			err = sendMessage(connection, ssHandshakeMessageType, data)
+			if err != nil {
+				logger.Errorf("%s: Can't send handshake message: %v", sp.SID, err)
+				return
+			}
+		}
+	}()
+
 	return &sp, nil
+}
+
+func createRandomIntentID() string {
+	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
 func stopSignalReceived(stopCh <-chan struct{}) bool {
@@ -235,11 +282,6 @@ func openConnection(url string) (*websocket.Conn, error) {
 
 	connection, _, err := websocket.DefaultDialer.Dial(url, nil)
 	return connection, err
-}
-
-func nextOutgoingHandshake(outgoingHandshakeCh <-chan outgoingHandshake) (outgoingHandshake, bool) {
-	fmt.Println(outgoingHandshakeCh)
-	return outgoingHandshake{}, false
 }
 
 func (s *signal) dial(peerID peer.ID) (transport.CapableConn, error) {
@@ -285,5 +327,6 @@ func (s *signal) close() error {
 
 func (s *signal) stopClient() error {
 	s.stopCh <- struct{}{}
+	close(s.outgoingHandshakesCh)
 	return nil
 }
