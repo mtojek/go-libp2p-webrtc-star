@@ -18,18 +18,17 @@ func processMessage(addressBook addressBook, message []byte) error {
 		err := json.Unmarshal(message, &m)
 		if err != nil {
 			return err
+		} else if len(m) < 2 {
+			return errors.New("missing peer information")
 		}
-		return processWsPeerMessage(addressBook, m)
+
+		return processWsPeerMessage(addressBook, m[1])
 	}
 	return errors.New("tried to process unknown message")
 }
 
-func processWsPeerMessage(addressBook addressBook, wsPeerMessage []string) error {
-	if len(wsPeerMessage) < 2 {
-		return errors.New("missing peer information")
-	}
-
-	peerID, signalMultiaddr, err := extractPeerDestination(wsPeerMessage[1])
+func processWsPeerMessage(addressBook addressBook, wsPeerMessage string) error {
+	peerID, signalMultiaddr, err := extractPeerDestination(wsPeerMessage)
 	if err != nil {
 		return err
 	}
