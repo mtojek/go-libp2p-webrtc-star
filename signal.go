@@ -2,6 +2,7 @@ package star
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/pion/webrtc"
 	"strings"
@@ -17,6 +18,9 @@ import (
 const (
 	maxMessageSize = 8192
 	messagePrefix  = "42"
+
+	handshakeAnswerTimeout     = 10 * time.Second
+	totalDialHandshakesWaiting = 1024
 
 	ssHandshakeMessageType = "ss-handshake"
 	ssJoinMessageType      = "ss-join"
@@ -34,15 +38,14 @@ type SignalConfiguration struct {
 	URLPath string
 }
 
+type incomingHandshakeAnswer struct {
+	sourcePeerID peer.ID
+	answer       webrtc.SessionDescription
+}
+
 type outgoingHandshake struct {
 	destinationPeerID peer.ID
 	offer             webrtc.SessionDescription
-	answerCh          chan<- handshakeAnswer
-}
-
-type handshakeAnswer struct {
-	sessionDescription webrtc.SessionDescription
-	err                error
 }
 
 type handshakeData struct {
@@ -247,7 +250,6 @@ func openSession(connection *websocket.Conn, signalMultiaddr ma.Multiaddr, peerM
 				SrcMultiaddr: peerMultiaddr.String(),
 				Signal:       outgoingHandshake.offer,
 			}
-			// TODO prevent handshake timeout
 			logger.Debugf("%s: Send handshake message: %v", sp.SID, data)
 			err = sendMessage(connection, ssHandshakeMessageType, data)
 			if err != nil {
@@ -295,26 +297,33 @@ func (s *signal) dial(peerID peer.ID) (transport.CapableConn, error) {
 		return nil, err
 	}
 
-	answerCh := make(chan handshakeAnswer)
-
 	logger.Debugf("WebRTC offer description: %v", offerDescription.SDP)
-	s.outgoingHandshakesCh <- outgoingHandshake{
-		destinationPeerID: peerID,
-		offer:             offerDescription,
-		answerCh:          answerCh,
-	}
-	answer := <-answerCh
-	if answer.err != nil {
+	answerDescription, err := s.doHandshake(peerID, offerDescription)
+	if err != nil {
 		return nil, err
 	}
 
-	logger.Debugf("WebRTC answer description: %v", answer.sessionDescription.SDP)
-	err = peerConnection.SetRemoteDescription(answer.sessionDescription)
+	logger.Debugf("WebRTC answer description: %v", answerDescription.SDP)
+	err = peerConnection.SetRemoteDescription(answerDescription)
 	if err != nil {
 		return nil, err
 	}
 
 	panic("implement me")
+}
+
+func (s *signal) doHandshake(destinationPeerID peer.ID, offerDescription webrtc.SessionDescription) (webrtc.SessionDescription, error) {
+	s.outgoingHandshakesCh <- outgoingHandshake{
+		destinationPeerID: destinationPeerID,
+		offer:             offerDescription,
+	}
+
+	timeout := time.After(handshakeAnswerTimeout)
+	select {
+	// TODO subscribe
+	case <-timeout:
+		return webrtc.SessionDescription{}, errors.New("handshake answer timeout")
+	}
 }
 
 func (s *signal) accept() (transport.CapableConn, error) {
