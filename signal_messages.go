@@ -12,7 +12,7 @@ import (
 
 const wsPeerAliveTTL = 60 * time.Second
 
-func processMessage(addressBook addressBook, message []byte) error {
+func processMessage(addressBook addressBook, handshakeSubscription *handshakeSubscription, message []byte) error {
 	if bytes.Index(message, []byte(`["ws-peer",`)) == 0 {
 		var m []string
 		err := json.Unmarshal(message, &m)
@@ -21,19 +21,30 @@ func processMessage(addressBook addressBook, message []byte) error {
 		} else if len(m) < 2 {
 			return errors.New("missing peer information")
 		}
-
 		return processWsPeerMessage(addressBook, m[1])
+	} else if bytes.Index(message, []byte(`["ws-handshake",`)) == 0 {
+		return processWsHandshakeMessage(handshakeSubscription, message[len(`["ws-handshake",`):len(message)-1])
 	}
 	return errors.New("tried to process unknown message")
 }
 
-func processWsPeerMessage(addressBook addressBook, wsPeerMessage string) error {
-	peerID, signalMultiaddr, err := extractPeerDestination(wsPeerMessage)
+func processWsPeerMessage(addressBook addressBook, message string) error {
+	peerID, signalMultiaddr, err := extractPeerDestination(message)
 	if err != nil {
 		return err
 	}
 
 	addressBook.AddAddr(peerID, signalMultiaddr, wsPeerAliveTTL)
+	return nil
+}
+
+func processWsHandshakeMessage(handshakeSubscription *handshakeSubscription, message []byte) error {
+	var answer handshakeData
+	err := json.Unmarshal(message, &answer)
+	if err != nil {
+		return err
+	}
+	handshakeSubscription.emit(answer)
 	return nil
 }
 
@@ -105,4 +116,3 @@ func readEmptyMessage(connection *websocket.Conn) error {
 	}
 	return nil
 }
-
