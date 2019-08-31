@@ -239,6 +239,11 @@ func openSession(connection *websocket.Conn, signalMultiaddr ma.Multiaddr, peerM
 
 	go func() {
 		for outgoingHandshake := range outgoingHandshakesCh {
+			if !isConnectionHealthy(connection) {
+				logger.Error("%s: can't send handshake offers due to invalid connection", sp.SID)
+				return
+			}
+
 			dstMultiaddr, err := ma.NewMultiaddr(fmt.Sprintf("/%s/%s", ipfsProtocolName, outgoingHandshake.destinationPeerID.String()))
 			if err != nil {
 				logger.Errorf("%s: Invalid destination in handshake: %v", sp.SID, err)
@@ -253,7 +258,7 @@ func openSession(connection *websocket.Conn, signalMultiaddr ma.Multiaddr, peerM
 			logger.Debugf("%s: Send handshake message: %v", sp.SID, data)
 			err = sendMessage(connection, ssHandshakeMessageType, data)
 			if err != nil {
-				logger.Errorf("%s: Can't send handshake message: %v", sp.SID, err)
+				logger.Errorf("%s: Can't send handshake offer: %v", sp.SID, err)
 				return
 			}
 		}
@@ -322,6 +327,7 @@ func (s *signal) doHandshake(destinationPeerID peer.ID, offerDescription webrtc.
 	select {
 	// TODO subscribe
 	case <-timeout:
+		// TODO cancel subscription
 		return webrtc.SessionDescription{}, errors.New("handshake answer timeout")
 	}
 }
