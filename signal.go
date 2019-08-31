@@ -20,7 +20,6 @@ const (
 	messagePrefix  = "42"
 
 	handshakeAnswerTimeout     = 10 * time.Second
-	totalDialHandshakesWaiting = 1024
 
 	ssHandshakeMessageType = "ss-handshake"
 	ssJoinMessageType      = "ss-join"

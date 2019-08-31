@@ -13,7 +13,7 @@ import (
 const wsPeerAliveTTL = 60 * time.Second
 
 func processMessage(addressBook addressBook, message []byte) error {
-	if bytes.Index(message, []byte(`["ws-peer",`)) > -1 {
+	if bytes.Index(message, []byte(`["ws-peer",`)) == 0 {
 		var m []string
 		err := json.Unmarshal(message, &m)
 		if err != nil {
