@@ -6,7 +6,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/mux"
 )
 
-type stream struct {}
+type stream struct{}
 
 var _ mux.MuxedStream = new(stream)
 

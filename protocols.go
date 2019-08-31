@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	protocol = mustCreateProtocol(webRTCStarProtocolCode, webRTCStarProtocolName)
+	protocol          = mustCreateProtocol(webRTCStarProtocolCode, webRTCStarProtocolName)
 	protocolMultiaddr ma.Multiaddr
 
 	wssProtocol = mustCreateProtocol(wssProtocolCode, wssProtocolName)

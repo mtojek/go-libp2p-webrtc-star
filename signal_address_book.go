@@ -12,7 +12,7 @@ type addressBook interface {
 
 type selfIgnoreAddressBook struct {
 	addressBook addressBook
-	ownPeerID peer.ID
+	ownPeerID   peer.ID
 }
 
 var _ addressBook = new(selfIgnoreAddressBook)
@@ -28,6 +28,6 @@ func (siab *selfIgnoreAddressBook) AddAddr(p peer.ID, addr ma.Multiaddr, ttl tim
 func decorateSelfIgnoreAddressBook(addressBook addressBook, peerID peer.ID) addressBook {
 	return &selfIgnoreAddressBook{
 		addressBook: addressBook,
-		ownPeerID: peerID,
+		ownPeerID:   peerID,
 	}
 }

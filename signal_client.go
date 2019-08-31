@@ -150,7 +150,7 @@ func openSession(connection *websocket.Conn, peerMultiaddr ma.Multiaddr,
 				logger.Debugf("%s: Stop signal received. Close handshake offer sender", sp.SID)
 				return
 			case offer := <-handshakeDataCh:
-				logger.Debugf("%s: Send handshake message: %v", sp.SID, offer.Signal.SDP)
+				logger.Debugf("%s: Send handshake message", sp.SID)
 				err = sendMessage(connection, "ss-handshake", offer)
 				if err != nil {
 					logger.Errorf("%s: Can't send handshake offer: %v", sp.SID, err)

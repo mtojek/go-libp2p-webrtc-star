@@ -113,13 +113,11 @@ func (s *signal) dial(peerID peer.ID) (transport.CapableConn, error) {
 		return nil, err
 	}
 
-	logger.Debugf("dial: WebRTC offer description: %v", offerDescription.SDP)
 	answerDescription, err := s.doHandshake(peerID, offerDescription)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Debugf("dial: WebRTC answer description: %v", answerDescription.SDP)
 	err = peerConnection.SetRemoteDescription(answerDescription)
 	if err != nil {
 		return nil, err
@@ -139,7 +137,6 @@ func (s *signal) accept() (transport.CapableConn, error) {
 		return nil, err
 	}
 
-	logger.Debugf("accept: WebRTC offer description: %v", offerDescription.Signal.SDP)
 	err = peerConnection.SetRemoteDescription(offerDescription.Signal)
 	if err != nil {
 		return nil, err
@@ -149,7 +146,6 @@ func (s *signal) accept() (transport.CapableConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger.Debugf("accept: WebRTC answer description: %v", answerDescription.SDP)
 
 	s.answerHandshake(offerDescription.IntentID, offerDescription.SrcMultiaddr, answerDescription)
 

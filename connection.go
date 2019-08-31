@@ -8,7 +8,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-type connection struct {}
+type connection struct{}
 
 var _ transport.CapableConn = new(connection)
 

@@ -10,7 +10,7 @@ import (
 
 type listener struct {
 	address ma.Multiaddr
-	signal *signal
+	signal  *signal
 }
 
 var _ transport.Listener = new(listener)
@@ -19,7 +19,7 @@ func newListener(address ma.Multiaddr, signal *signal) (*listener, error) {
 	logger.Debugf("Create new listener (address: %s)", address)
 	return &listener{
 		address: address,
-		signal: signal,
+		signal:  signal,
 	}, nil
 }
 
