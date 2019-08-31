@@ -12,6 +12,10 @@ type connection struct{}
 
 var _ transport.CapableConn = new(connection)
 
+func newConnection() *connection {
+	return new(connection)
+}
+
 func (c *connection) Close() error {
 	panic("implement me")
 }

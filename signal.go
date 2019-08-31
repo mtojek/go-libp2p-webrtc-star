@@ -123,7 +123,7 @@ func (s *signal) dial(peerID peer.ID) (transport.CapableConn, error) {
 		return nil, err
 	}
 
-	panic("implement me")
+	return newConnection(), nil
 }
 
 func (s *signal) accept() (transport.CapableConn, error) {
@@ -149,7 +149,7 @@ func (s *signal) accept() (transport.CapableConn, error) {
 
 	s.answerHandshake(offerDescription.IntentID, offerDescription.SrcMultiaddr, answerDescription)
 
-	panic("implement me")
+	return newConnection(), nil
 }
 
 func (s *signal) close() error {
