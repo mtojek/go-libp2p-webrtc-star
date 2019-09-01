@@ -16,15 +16,19 @@ const (
 	maxMessageSize = 8192
 	messagePrefix  = "42"
 
-	handshakeAnswerTimeout = 10 * time.Second
+	handshakeAnswerTimeout = 30 * time.Second
 )
 
 type signal struct {
-	peerMultiaddr   ma.Multiaddr
+	transport transport.Transport
+
+	peerID        peer.ID
+	peerMultiaddr ma.Multiaddr
+
 	signalMultiaddr ma.Multiaddr
 
 	acceptedCh      <-chan transport.CapableConn
-	handshakeDataCh chan handshakeData
+	handshakeDataCh chan<- handshakeData
 	stopCh          chan<- struct{}
 
 	handshakeSubscription *handshakeSubscription
@@ -42,7 +46,7 @@ type sessionProperties struct {
 	PingTimeoutMillis  int64  `json:"pingTimeout"`
 }
 
-func newSignal(signalMultiaddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, signalConfiguration SignalConfiguration,
+func newSignal(transport transport.Transport, signalMultiaddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, signalConfiguration SignalConfiguration,
 	webRTCConfiguration webrtc.Configuration) (*signal, error) {
 	url, err := createSignalURL(signalMultiaddr, signalConfiguration)
 	if err != nil {
@@ -57,11 +61,12 @@ func newSignal(signalMultiaddr ma.Multiaddr, addressBook addressBook, peerID pee
 	smartAddressBook := decorateSelfIgnoreAddressBook(addressBook, peerID)
 	handshakeSubscription := newHandshakeSubscription()
 
-	handshakeDataCh := make(chan handshakeData)
 	stopCh := make(chan struct{}, 2)
 
-	acceptedCh := startClient(url, peerMultiaddr, smartAddressBook, handshakeDataCh, handshakeSubscription, stopCh)
+	acceptedCh, handshakeDataCh := startClient(url, peerMultiaddr, smartAddressBook, handshakeSubscription, stopCh)
 	return &signal{
+		transport:             transport,
+		peerID:                peerID,
 		peerMultiaddr:         peerMultiaddr,
 		signalMultiaddr:       signalMultiaddr,
 		acceptedCh:            acceptedCh,
@@ -102,7 +107,7 @@ func readProtocolForSignalURL(maddr ma.Multiaddr) string {
 	return "ws://"
 }
 
-func (s *signal) dial(peerID peer.ID) (transport.CapableConn, error) {
+func (s *signal) dial(remotePeerID peer.ID) (transport.CapableConn, error) {
 	peerConnection, err := webrtc.NewPeerConnection(s.webRTCConfiguration)
 	if err != nil {
 		return nil, err
@@ -113,21 +118,36 @@ func (s *signal) dial(peerID peer.ID) (transport.CapableConn, error) {
 		return nil, err
 	}
 
-	answerDescription, err := s.doHandshake(peerID, offerDescription)
+	err = peerConnection.SetLocalDescription(offerDescription)
 	if err != nil {
 		return nil, err
 	}
 
-	err = peerConnection.SetRemoteDescription(answerDescription)
+	dstMultiaddr, err := ma.NewMultiaddr(fmt.Sprintf("/%s/%s", ipfsProtocolName, remotePeerID.String()))
+	if err != nil {
+		return nil, err
+	}
+	offer := handshakeData{
+		IntentID:     createRandomIntentID(),
+		SrcMultiaddr: s.peerMultiaddr.String(),
+		DstMultiaddr: s.signalMultiaddr.Encapsulate(dstMultiaddr).String(),
+		Signal:       offerDescription,
+	}
+	answer, err := s.doHandshake(offer)
 	if err != nil {
 		return nil, err
 	}
 
-	return newConnection(), nil
+	err = peerConnection.SetRemoteDescription(answer.Signal)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.openConnection(offer.DstMultiaddr)
 }
 
 func (s *signal) accept() (transport.CapableConn, error) {
-	offerDescription, ok := <-s.handshakeSubscription.unsubscribed()
+	offer, ok := <-s.handshakeSubscription.unsubscribed()
 	if !ok {
 		return nil, errors.New("subscription channel has been closed")
 	}
@@ -137,7 +157,7 @@ func (s *signal) accept() (transport.CapableConn, error) {
 		return nil, err
 	}
 
-	err = peerConnection.SetRemoteDescription(offerDescription.Signal)
+	err = peerConnection.SetRemoteDescription(offer.Signal)
 	if err != nil {
 		return nil, err
 	}
@@ -147,9 +167,47 @@ func (s *signal) accept() (transport.CapableConn, error) {
 		return nil, err
 	}
 
-	s.answerHandshake(offerDescription.IntentID, offerDescription.SrcMultiaddr, answerDescription)
+	err = peerConnection.SetLocalDescription(answerDescription)
+	if err != nil {
+		return nil, err
+	}
 
-	return newConnection(), nil
+	answer := handshakeData{
+		IntentID:     offer.IntentID,
+		SrcMultiaddr: offer.SrcMultiaddr,
+		DstMultiaddr: s.peerMultiaddr.String(),
+		Signal:       answerDescription,
+		Answer:       true,
+	}
+	s.answerHandshake(answer)
+	return s.openConnection(offer.SrcMultiaddr)
+}
+
+func (s *signal) openConnection(destination string) (transport.CapableConn, error) {
+	dstMultiaddr, err := ma.NewMultiaddr(destination)
+	if err != nil {
+		return nil, err
+	}
+
+	value, err := dstMultiaddr.ValueForProtocol(ma.P_P2P)
+	if err != nil {
+		return nil, err
+	}
+
+	remotePeerID, err := peer.IDB58Decode(value)
+	if err != nil {
+		return nil, err
+	}
+
+	return newConnection(connectionConfiguration{
+		remotePeerID:        remotePeerID,
+		remotePeerMultiaddr: dstMultiaddr,
+
+		localPeerID:        s.peerID,
+		localPeerMultiaddr: s.peerMultiaddr,
+
+		transport: s.transport,
+	}), nil
 }
 
 func (s *signal) close() error {
@@ -158,6 +216,9 @@ func (s *signal) close() error {
 
 func (s *signal) stopClient() error {
 	s.stopCh <- struct{}{}
-	close(s.handshakeDataCh)
 	return nil
+}
+
+func createRandomIntentID() string {
+	return createRandomID("signal")
 }

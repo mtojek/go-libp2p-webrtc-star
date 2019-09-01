@@ -9,11 +9,13 @@ import (
 )
 
 func startClient(url string, peerMultiaddr ma.Multiaddr, addressBook addressBook,
-	handshakeDataCh <-chan handshakeData, handshakeSubscription *handshakeSubscription,
-	stopCh <-chan struct{}) <-chan transport.CapableConn {
+	handshakeSubscription *handshakeSubscription, stopCh <-chan struct{}) (<-chan transport.CapableConn,
+	chan<- handshakeData) {
 	logger.Debugf("Use signal server: %s", url)
 
 	acceptedCh := make(chan transport.CapableConn)
+	handshakeDataCh := make(chan handshakeData)
+
 	internalStopCh := make(chan struct{})
 	threadsRunning := false
 
@@ -33,6 +35,7 @@ func startClient(url string, peerMultiaddr ma.Multiaddr, addressBook addressBook
 			if stopSignalReceived(stopCh) {
 				logger.Debugf("Stop signal received. Closing")
 				stopSessionThreads()
+				close(handshakeDataCh)
 				return
 			}
 
@@ -75,7 +78,7 @@ func startClient(url string, peerMultiaddr ma.Multiaddr, addressBook addressBook
 			}
 		}
 	}()
-	return acceptedCh
+	return acceptedCh, handshakeDataCh
 }
 
 func openSession(connection *websocket.Conn, peerMultiaddr ma.Multiaddr,

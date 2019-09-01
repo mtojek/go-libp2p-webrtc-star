@@ -52,7 +52,7 @@ func (t *Transport) getOrCreateSignal(addr ma.Multiaddr) (*signal, error) {
 	t.m.RUnlock()
 
 	if !ok {
-		signal, err = newSignal(addr, t.addressBook, t.peerID, t.signalConfiguration, t.webRTCConfiguration)
+		signal, err = newSignal(t, addr, t.addressBook, t.peerID, t.signalConfiguration, t.webRTCConfiguration)
 		if err != nil {
 			return nil, err
 		}
