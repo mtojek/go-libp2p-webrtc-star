@@ -4,12 +4,19 @@ import (
 	"github.com/libp2p/go-libp2p-core/mux"
 	"github.com/pion/datachannel"
 	"io"
+	"math"
 	"time"
 )
+
+const wrapperBufferSize = math.MaxUint16
 
 type stream struct {
 	id          string
 	dataChannel datachannel.ReadWriteCloser
+
+	buffer      []byte
+	bufferStart int
+	bufferEnd   int
 }
 
 var _ mux.MuxedStream = new(stream)
@@ -18,23 +25,46 @@ func newStream(dataChannel datachannel.ReadWriteCloser) *stream {
 	return &stream{
 		id:          createRandomID("stream"),
 		dataChannel: dataChannel,
+
+		buffer: make([]byte, wrapperBufferSize),
 	}
 }
 
 func (s *stream) Read(p []byte) (int, error) {
-	i, err := s.dataChannel.Read(p)
-	if err != nil {
-		return i, io.EOF
+	var err error
+
+	if s.bufferEnd == 0 {
+		n := 0
+		n, err = s.dataChannel.Read(s.buffer)
+		if err != nil {
+			logger.Debugf("Error occurred while reading from data channel: %v", err)
+			err = io.EOF
+		}
+		s.bufferEnd = n
 	}
-	return i, nil
+
+	n := 0
+	if s.bufferEnd-s.bufferStart > 0 {
+		n = copy(p, s.buffer[s.bufferStart:s.bufferEnd])
+		s.bufferStart += n
+
+		if s.bufferStart >= s.bufferEnd {
+			s.bufferStart = 0
+			s.bufferEnd = 0
+		}
+	}
+	return n, err
 }
 
-func (s *stream) Write(p []byte) (n int, err error) {
+func (s *stream) Write(p []byte) (int, error) {
+	if len(p) > wrapperBufferSize {
+		return s.dataChannel.Write(p[:wrapperBufferSize])
+	}
 	return s.dataChannel.Write(p)
 }
 
 func (s *stream) Reset() error {
-	logger.Debugf("%s: Reset stream", s.id)
+	logger.Debugf("%s: Reset stream (no actions)", s.id)
 	return s.dataChannel.Close()
 }
 

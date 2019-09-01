@@ -48,44 +48,22 @@ func newConnection(configuration connectionConfiguration, peerConnection *webrtc
 
 func (c *connection) OpenStream() (mux.MuxedStream, error) {
 	logger.Debugf("%s: Open stream", c.id)
-	if c.closed {
-		return nil, errors.New("connection already closed")
-	}
-
-	dataChannel, err := c.peerConnection.CreateDataChannel("data", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	onOpenResult := make(chan detachResult)
-	dataChannel.OnOpen(func() {
-		detached, err := dataChannel.Detach()
-		onOpenResult <- detachResult{
-			dataChannel: detached,
-			err:         err,
-		}
-	})
-	r := <-onOpenResult
-	if r.err != nil {
-		return nil, r.err
-	}
-	return newStream(r.dataChannel), nil
+	return c.foo()
 }
 
 func (c *connection) AcceptStream() (mux.MuxedStream, error) {
-	logger.Debugf("%s: Accept stream", c.id)
+	//logger.Debugf("%s: Accept stream", c.id)
 	return c.foo()
 }
 
 func (c *connection) foo() (mux.MuxedStream, error) {
 	if c.closed {
-		logger.Debug("foo closed")
 		return nil, errors.New("connection already closed")
 	}
 
-	dataChannel, err := c.peerConnection.CreateDataChannel("data", nil)
+	dataChannel, err := c.peerConnection.CreateDataChannel(createRandomID("datachannel"), nil)
 	if err != nil {
-		logger.Debug("CreateDataChannel err", err)
+		logger.Warningf("Can't create data channel: %v", err)
 		return nil, err
 	}
 
@@ -99,7 +77,7 @@ func (c *connection) foo() (mux.MuxedStream, error) {
 	})
 	r := <-onOpenResult
 	if r.err != nil {
-		logger.Debug("onOpenResult err", err)
+		logger.Errorf("Detaching data channel failed: %v", err)
 		return nil, r.err
 	}
 	return newStream(r.dataChannel), nil

@@ -55,7 +55,8 @@ func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 		libp2p.Identity(privKey),
 		libp2p.ListenAddrs(signalMultiaddr),
 		libp2p.Peerstore(peerstore),
-		libp2p.Transport(starTransport))
+		libp2p.Transport(starTransport),
+		libp2p.DefaultMuxers)
 	require.NoError(t, err)
 	return h
 }

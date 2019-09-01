@@ -29,8 +29,13 @@ func TestSendSingleMessage(t *testing.T) {
 	secondHost.SetStreamHandler(protocolID, func(stream network.Stream) {
 		var message []byte
 
-		n, err := stream.Read(message)
-		require.NoError(t, err)
+		var n int
+		var err error
+		for n < 1 {
+			n, err = stream.Read(message)
+			require.NoError(t, err)
+		}
+
 		require.NotZero(t, n, "no data read")
 
 		// then
