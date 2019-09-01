@@ -8,7 +8,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/transport"
 	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
-	"time"
 )
 
 type connection struct {
@@ -16,6 +15,8 @@ type connection struct {
 
 	configuration connectionConfiguration
 }
+
+var _ transport.CapableConn = new(connection)
 
 type connectionConfiguration struct {
 	remotePeerID        peer.ID
@@ -27,8 +28,6 @@ type connectionConfiguration struct {
 	transport transport.Transport
 }
 
-var _ transport.CapableConn = new(connection)
-
 func newConnection(configuration connectionConfiguration) *connection {
 	return &connection{
 		id:            createRandomID("connection"),
@@ -36,29 +35,25 @@ func newConnection(configuration connectionConfiguration) *connection {
 	}
 }
 
-func (c *connection) Close() error {
-	logger.Debugf("%s: Close stream", c.id)
-	return nil
-	//time.Sleep(20 * time.Minute)
-	//panic("implement me")
-}
-
-func (c *connection) IsClosed() bool {
-	panic("implement me")
-}
-
 func (c *connection) OpenStream() (mux.MuxedStream, error) {
 	logger.Debugf("%s: Open stream", c.id)
 
-	time.Sleep(20 * time.Minute)
-	panic("implement me")
+	panic("implement me") // TODO
 }
 
 func (c *connection) AcceptStream() (mux.MuxedStream, error) {
 	logger.Debugf("%s: Accept stream", c.id)
 
-	time.Sleep(20 * time.Minute)
-	panic("implement me")
+	panic("implement me") // TODO
+}
+
+func (c *connection) IsClosed() bool {
+	panic("implement me") // TODO
+}
+
+func (c *connection) Close() error {
+	logger.Debugf("%s: Close connection (no actions)", c.id)
+	return nil
 }
 
 func (c *connection) LocalPeer() peer.ID {
@@ -82,15 +77,17 @@ func (c *connection) Transport() transport.Transport {
 }
 
 func (c *connection) String() string {
-	return fmt.Sprintf("WebRTC connection (localPeerID: %v, localPeerMultiaddr: %v, remotePeerID: %v, remotePeerMultiaddr: %v",
-		c.configuration.localPeerID, c.configuration.localPeerMultiaddr,
+	return fmt.Sprintf("WebRTC connection (ID: %s, localPeerID: %v, localPeerMultiaddr: %v, remotePeerID: %v, remotePeerMultiaddr: %v",
+		c.id, c.configuration.localPeerID, c.configuration.localPeerMultiaddr,
 		c.configuration.remotePeerID, c.configuration.remotePeerMultiaddr)
 }
 
 func (c *connection) LocalPrivateKey() crypto.PrivKey {
-	return nil // not supported yet
+	logger.Warningf("%s: Local private key undefined", c.id)
+	return nil
 }
 
 func (c *connection) RemotePublicKey() crypto.PubKey {
-	return nil // not supported yet
+	logger.Warningf("%s: Remote public key undefined", c.id)
+	return nil
 }

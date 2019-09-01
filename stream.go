@@ -6,34 +6,48 @@ import (
 	"github.com/libp2p/go-libp2p-core/mux"
 )
 
-type stream struct{}
+type stream struct {
+	id string
+}
 
 var _ mux.MuxedStream = new(stream)
 
+func newStream() *stream {
+	return &stream{
+		id: createRandomID("stream"),
+	}
+}
+
 func (s *stream) Read(p []byte) (n int, err error) {
-	panic("implement me")
+	panic("implement me") // TODO
 }
 
 func (s *stream) Write(p []byte) (n int, err error) {
-	panic("implement me")
-}
-
-func (s *stream) Close() error {
-	panic("implement me")
+	panic("implement me") // TODO
 }
 
 func (s *stream) Reset() error {
-	panic("implement me")
+	logger.Debugf("%s: Reset stream", s.id)
+
+	panic("implement me") // TODO
+}
+
+func (s *stream) Close() error {
+	logger.Warningf("%s: Close stream (no actions)", s.id)
+	return nil
 }
 
 func (s *stream) SetDeadline(time.Time) error {
-	panic("implement me")
+	logger.Warningf("%s: Can't set deadline (not implemented)", s.id)
+	return nil
 }
 
 func (s *stream) SetReadDeadline(time.Time) error {
-	panic("implement me")
+	logger.Warningf("%s: Can't set read deadline (not implemented)", s.id)
+	return nil
 }
 
 func (s *stream) SetWriteDeadline(time.Time) error {
-	panic("implement me")
+	logger.Warningf("%s: Can't set write deadline (not implemented)", s.id)
+	return nil
 }
