@@ -44,16 +44,13 @@ func (s *stream) Close() error {
 }
 
 func (s *stream) SetDeadline(time.Time) error {
-	logger.Warningf("%s: Can't set deadline (not implemented)", s.id)
 	return nil
 }
 
 func (s *stream) SetReadDeadline(time.Time) error {
-	logger.Warningf("%s: Can't set read deadline (not implemented)", s.id)
 	return nil
 }
 
 func (s *stream) SetWriteDeadline(time.Time) error {
-	logger.Warningf("%s: Can't set write deadline (not implemented)", s.id)
 	return nil
 }

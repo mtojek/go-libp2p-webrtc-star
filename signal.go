@@ -45,6 +45,14 @@ type sessionProperties struct {
 	PingTimeoutMillis  int64  `json:"pingTimeout"`
 }
 
+var webrtcapi *webrtc.API
+
+func init() {
+	settingEngine := webrtc.SettingEngine{}
+	settingEngine.DetachDataChannels()
+	webrtcapi = webrtc.NewAPI(webrtc.WithSettingEngine(settingEngine))
+}
+
 func newSignal(transport transport.Transport, signalMultiaddr ma.Multiaddr, addressBook addressBook, peerID peer.ID,
 	signalConfiguration SignalConfiguration, webRTCConfiguration webrtc.Configuration) (*signal, error) {
 	url, err := createSignalURL(signalMultiaddr, signalConfiguration)
@@ -107,7 +115,7 @@ func readProtocolForSignalURL(maddr ma.Multiaddr) string {
 }
 
 func (s *signal) dial(remotePeerID peer.ID) (transport.CapableConn, error) {
-	peerConnection, err := webrtc.NewPeerConnection(s.webRTCConfiguration)
+	peerConnection, err := webrtcapi.NewPeerConnection(s.webRTCConfiguration)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +150,7 @@ func (s *signal) dial(remotePeerID peer.ID) (transport.CapableConn, error) {
 		return nil, err
 	}
 
-	return s.openConnection(offer.DstMultiaddr)
+	return s.openConnection(offer.DstMultiaddr, peerConnection)
 }
 
 func (s *signal) accept() (transport.CapableConn, error) {
@@ -151,7 +159,7 @@ func (s *signal) accept() (transport.CapableConn, error) {
 		return nil, errors.New("subscription channel has been closed")
 	}
 
-	peerConnection, err := webrtc.NewPeerConnection(s.webRTCConfiguration)
+	peerConnection, err := webrtcapi.NewPeerConnection(s.webRTCConfiguration)
 	if err != nil {
 		return nil, err
 	}
@@ -179,10 +187,10 @@ func (s *signal) accept() (transport.CapableConn, error) {
 		Answer:       true,
 	}
 	s.answerHandshake(answer)
-	return s.openConnection(offer.SrcMultiaddr)
+	return s.openConnection(offer.SrcMultiaddr, peerConnection)
 }
 
-func (s *signal) openConnection(destination string) (transport.CapableConn, error) {
+func (s *signal) openConnection(destination string, peerConnection *webrtc.PeerConnection) (transport.CapableConn, error) {
 	dstMultiaddr, err := ma.NewMultiaddr(destination)
 	if err != nil {
 		return nil, err
@@ -206,7 +214,7 @@ func (s *signal) openConnection(destination string) (transport.CapableConn, erro
 		localPeerMultiaddr: s.peerMultiaddr,
 
 		transport: s.transport,
-	}), nil
+	}, peerConnection), nil
 }
 
 func (s *signal) close() error {
