@@ -3,6 +3,7 @@ package star
 import (
 	"errors"
 	"fmt"
+	"github.com/libp2p/go-libp2p-core/mux"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/transport"
 	ma "github.com/multiformats/go-multiaddr"
@@ -31,6 +32,7 @@ type signal struct {
 
 	handshakeSubscription *handshakeSubscription
 	webRTCConfiguration   webrtc.Configuration
+	multiplexer           mux.Multiplexer
 
 	stopCh chan<- struct{}
 }
@@ -54,7 +56,7 @@ func init() {
 }
 
 func newSignal(transport transport.Transport, signalMultiaddr ma.Multiaddr, addressBook addressBook, peerID peer.ID,
-	signalConfiguration SignalConfiguration, webRTCConfiguration webrtc.Configuration) (*signal, error) {
+	signalConfiguration SignalConfiguration, webRTCConfiguration webrtc.Configuration, multiplexer mux.Multiplexer) (*signal, error) {
 	url, err := createSignalURL(signalMultiaddr, signalConfiguration)
 	if err != nil {
 		return nil, err
@@ -81,6 +83,7 @@ func newSignal(transport transport.Transport, signalMultiaddr ma.Multiaddr, addr
 		handshakeDataCh:       handshakeDataCh,
 		stopCh:                stopCh,
 		webRTCConfiguration:   webRTCConfiguration,
+		multiplexer:           multiplexer,
 	}, nil
 }
 
@@ -150,7 +153,7 @@ func (s *signal) dial(remotePeerID peer.ID) (transport.CapableConn, error) {
 		return nil, err
 	}
 
-	return s.openConnection(offer.DstMultiaddr, peerConnection)
+	return s.openConnection(offer.DstMultiaddr, peerConnection, false)
 }
 
 func (s *signal) accept() (transport.CapableConn, error) {
@@ -187,10 +190,10 @@ func (s *signal) accept() (transport.CapableConn, error) {
 		Answer:       true,
 	}
 	s.answerHandshake(answer)
-	return s.openConnection(offer.SrcMultiaddr, peerConnection)
+	return s.openConnection(offer.SrcMultiaddr, peerConnection, true)
 }
 
-func (s *signal) openConnection(destination string, peerConnection *webrtc.PeerConnection) (transport.CapableConn, error) {
+func (s *signal) openConnection(destination string, peerConnection *webrtc.PeerConnection, isServer bool) (transport.CapableConn, error) {
 	dstMultiaddr, err := ma.NewMultiaddr(destination)
 	if err != nil {
 		return nil, err
@@ -213,7 +216,9 @@ func (s *signal) openConnection(destination string, peerConnection *webrtc.PeerC
 		localPeerID:        s.peerID,
 		localPeerMultiaddr: s.peerMultiaddr,
 
-		transport: s.transport,
+		transport:   s.transport,
+		multiplexer: s.multiplexer,
+		isServer:    isServer,
 	}, peerConnection), nil
 }
 

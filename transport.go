@@ -3,6 +3,7 @@ package star
 import (
 	"context"
 	"fmt"
+	"github.com/libp2p/go-libp2p-core/mux"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/transport"
 	ma "github.com/multiformats/go-multiaddr"
@@ -19,6 +20,7 @@ type Transport struct {
 
 	signalConfiguration SignalConfiguration
 	webRTCConfiguration webrtc.Configuration
+	multiplexer         mux.Multiplexer
 }
 
 var _ transport.Transport = new(Transport)
@@ -53,7 +55,8 @@ func (t *Transport) getOrRegisterSignal(addr ma.Multiaddr) (*signal, error) {
 	t.m.RUnlock()
 
 	if !ok {
-		signal, err = newSignal(t, addr, t.addressBook, t.peerID, t.signalConfiguration, t.webRTCConfiguration)
+		signal, err = newSignal(t, addr, t.addressBook, t.peerID, t.signalConfiguration, t.webRTCConfiguration,
+			t.multiplexer)
 		if err != nil {
 			return nil, err
 		}
@@ -109,5 +112,10 @@ func (t *Transport) WithSignalConfiguration(c SignalConfiguration) *Transport {
 
 func (t *Transport) WithWebRTCConfiguration(c webrtc.Configuration) *Transport {
 	t.webRTCConfiguration = c
+	return t
+}
+
+func (t *Transport) WithMuxer(m mux.Multiplexer) *Transport {
+	t.multiplexer = m
 	return t
 }

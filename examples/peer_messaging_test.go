@@ -2,13 +2,12 @@ package examples
 
 import (
 	"context"
-	"github.com/libp2p/go-libp2p-core/protocol"
-	"sync"
-	"testing"
-
 	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"sync"
+	"testing"
 )
 
 const peerMessagingSendSingleMessageProtocolID = protocol.ID("/peer-messaging-send-single-message/1.0.0")
@@ -35,6 +34,7 @@ func TestSendSingleMessage(t *testing.T) {
 			n, err = stream.Read(message)
 			require.NoError(t, err)
 		}
+		panic("!!")
 
 		require.NotZero(t, n, "no data read")
 

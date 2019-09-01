@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
+	yamux "github.com/libp2p/go-libp2p-yamux"
 	"github.com/mtojek/go-libp2p-webrtc-star"
 	"github.com/stretchr/testify/require"
 )
@@ -33,6 +34,8 @@ func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 	identity := testutils.MustCreatePeerIdentity(t, privKey)
 	peerstore := pstoremem.NewPeerstore()
 
+	muxer := yamux.DefaultTransport
+
 	starTransport := star.New(identity, peerstore).
 		WithSignalConfiguration(star.SignalConfiguration{
 			URLPath: "/socket.io/?EIO=3&transport=websocket",
@@ -49,14 +52,15 @@ func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 					},
 				},
 			},
-		})
+		}).
+		WithMuxer(muxer)
 
 	h, err := libp2p.New(ctx,
 		libp2p.Identity(privKey),
 		libp2p.ListenAddrs(signalMultiaddr),
 		libp2p.Peerstore(peerstore),
 		libp2p.Transport(starTransport),
-		libp2p.DefaultMuxers)
+		libp2p.Muxer("/yamux/1.0.0", muxer))
 	require.NoError(t, err)
 	return h
 }

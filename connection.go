@@ -1,7 +1,6 @@
 package star
 
 import (
-	"errors"
 	"fmt"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/mux"
@@ -11,12 +10,17 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pion/datachannel"
 	"github.com/pion/webrtc"
+	"net"
+	"sync"
 )
 
 type connection struct {
 	id             string
 	peerConnection *webrtc.PeerConnection
 	configuration  connectionConfiguration
+
+	muxedConnection mux.MuxedConn
+	m               sync.Mutex
 
 	closed bool
 }
@@ -30,7 +34,9 @@ type connectionConfiguration struct {
 	localPeerID        peer.ID
 	localPeerMultiaddr ma.Multiaddr
 
-	transport transport.Transport
+	transport   transport.Transport
+	multiplexer mux.Multiplexer
+	isServer    bool
 }
 
 type detachResult struct {
@@ -48,19 +54,37 @@ func newConnection(configuration connectionConfiguration, peerConnection *webrtc
 
 func (c *connection) OpenStream() (mux.MuxedStream, error) {
 	logger.Debugf("%s: Open stream", c.id)
-	return c.foo()
+
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	if c.muxedConnection == nil {
+		var err error
+		c.muxedConnection, err = c.foo()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.muxedConnection.OpenStream()
 }
 
 func (c *connection) AcceptStream() (mux.MuxedStream, error) {
-	//logger.Debugf("%s: Accept stream", c.id)
-	return c.foo()
+	logger.Debugf("%s: Accept stream", c.id)
+
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	if c.muxedConnection == nil {
+		var err error
+		c.muxedConnection, err = c.foo()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.muxedConnection.AcceptStream()
 }
 
-func (c *connection) foo() (mux.MuxedStream, error) {
-	if c.closed {
-		return nil, errors.New("connection already closed")
-	}
-
+func (c *connection) foo() (mux.MuxedConn, error) {
 	dataChannel, err := c.peerConnection.CreateDataChannel(createRandomID("datachannel"), nil)
 	if err != nil {
 		logger.Warningf("Can't create data channel: %v", err)
@@ -80,7 +104,20 @@ func (c *connection) foo() (mux.MuxedStream, error) {
 		logger.Errorf("Detaching data channel failed: %v", err)
 		return nil, r.err
 	}
-	return newStream(r.dataChannel), nil
+
+	nAddr, err := toNetAddress(c.configuration.localPeerMultiaddr)
+	if err != nil {
+		return nil, err
+	}
+	return c.configuration.multiplexer.NewConn(newStream(r.dataChannel, nAddr), c.configuration.isServer)
+}
+
+func toNetAddress(peerMultiaddr ma.Multiaddr) (net.Addr, error) { // TODO
+	addr, err := net.ResolveTCPAddr("tcp4", "0.0.0.0:9876")
+	if err != nil {
+		return nil, err
+	}
+	return addr, nil
 }
 
 func (c *connection) IsClosed() bool {
