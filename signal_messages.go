@@ -7,10 +7,13 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+	"sync"
 	"time"
 )
 
 const wsPeerAliveTTL = 60 * time.Second
+
+var mSendMessage sync.Mutex
 
 func processMessage(addressBook addressBook, handshakeSubscription *handshakeSubscription, message []byte) error {
 	if bytes.Index(message, []byte(`["ws-peer",`)) == 0 {
@@ -101,6 +104,9 @@ func sendMessage(connection *websocket.Conn, messageType string, messageBody int
 		buffer.Write(b)
 	}
 	buffer.WriteByte(']')
+
+	mSendMessage.Lock()
+	defer mSendMessage.Unlock()
 	return connection.WriteMessage(websocket.TextMessage, buffer.Bytes())
 }
 

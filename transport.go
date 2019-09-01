@@ -2,6 +2,7 @@ package star
 
 import (
 	"context"
+	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/transport"
 	ma "github.com/multiformats/go-multiaddr"
@@ -24,7 +25,7 @@ var _ transport.Transport = new(Transport)
 
 func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (transport.CapableConn, error) {
 	logger.Debugf("Dial peer (ID: %s, address: %v)", p, raddr)
-	signal, err := t.getOrCreateSignal(raddr)
+	signal, err := t.getOrRegisterSignal(raddr)
 	if err != nil {
 		return nil, err
 	}
@@ -33,14 +34,14 @@ func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tr
 
 func (t *Transport) Listen(laddr ma.Multiaddr) (transport.Listener, error) {
 	logger.Debugf("Listen on address: %s", laddr)
-	signal, err := t.getOrCreateSignal(laddr)
+	signal, err := t.getOrRegisterSignal(laddr)
 	if err != nil {
 		return nil, err
 	}
-	return newListener(laddr, signal)
+	return newListener(laddr, signal, t.unregisterSignal)
 }
 
-func (t *Transport) getOrCreateSignal(addr ma.Multiaddr) (*signal, error) {
+func (t *Transport) getOrRegisterSignal(addr ma.Multiaddr) (*signal, error) {
 	var signal *signal
 	var err error
 	var ok bool
@@ -62,6 +63,23 @@ func (t *Transport) getOrCreateSignal(addr ma.Multiaddr) (*signal, error) {
 		t.m.Unlock()
 	}
 	return signal, err
+}
+
+func (t *Transport) unregisterSignal(addr ma.Multiaddr) error {
+	sAddr := addr.String()
+
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	if signal, ok := t.signals[sAddr]; ok {
+		err := signal.close()
+		if err != nil {
+			logger.Errorf("Error while closing signal: %v", err)
+		}
+		delete(t.signals, sAddr)
+		return nil
+	}
+	return fmt.Errorf(`no signal registered for "%s"`, sAddr)
 }
 
 func (t *Transport) CanDial(addr ma.Multiaddr) bool {

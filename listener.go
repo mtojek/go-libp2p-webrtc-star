@@ -9,17 +9,19 @@ import (
 )
 
 type listener struct {
-	address ma.Multiaddr
-	signal  *signal
+	address              ma.Multiaddr
+	signal               *signal
+	unregisterSignalFunc func(multiaddr ma.Multiaddr) error
 }
 
 var _ transport.Listener = new(listener)
 
-func newListener(address ma.Multiaddr, signal *signal) (*listener, error) {
+func newListener(address ma.Multiaddr, signal *signal, unregisterSignalFunc func(multiaddr ma.Multiaddr) error) (*listener, error) {
 	logger.Debugf("Create new listener (address: %s)", address)
 	return &listener{
-		address: address,
-		signal:  signal,
+		address:              address,
+		signal:               signal,
+		unregisterSignalFunc: unregisterSignalFunc,
 	}, nil
 }
 
@@ -30,7 +32,7 @@ func (l *listener) Accept() (transport.CapableConn, error) {
 
 func (l *listener) Close() error {
 	logger.Debug("Close listener")
-	return l.signal.close()
+	return l.unregisterSignalFunc(l.address)
 }
 
 func (l *listener) Addr() net.Addr {

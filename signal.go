@@ -22,18 +22,17 @@ const (
 type signal struct {
 	transport transport.Transport
 
-	peerID        peer.ID
-	peerMultiaddr ma.Multiaddr
-
+	peerID          peer.ID
+	peerMultiaddr   ma.Multiaddr
 	signalMultiaddr ma.Multiaddr
 
 	acceptedCh      <-chan transport.CapableConn
 	handshakeDataCh chan<- handshakeData
-	stopCh          chan<- struct{}
 
 	handshakeSubscription *handshakeSubscription
+	webRTCConfiguration   webrtc.Configuration
 
-	webRTCConfiguration webrtc.Configuration
+	stopCh chan<- struct{}
 }
 
 type SignalConfiguration struct {
@@ -46,8 +45,8 @@ type sessionProperties struct {
 	PingTimeoutMillis  int64  `json:"pingTimeout"`
 }
 
-func newSignal(transport transport.Transport, signalMultiaddr ma.Multiaddr, addressBook addressBook, peerID peer.ID, signalConfiguration SignalConfiguration,
-	webRTCConfiguration webrtc.Configuration) (*signal, error) {
+func newSignal(transport transport.Transport, signalMultiaddr ma.Multiaddr, addressBook addressBook, peerID peer.ID,
+	signalConfiguration SignalConfiguration, webRTCConfiguration webrtc.Configuration) (*signal, error) {
 	url, err := createSignalURL(signalMultiaddr, signalConfiguration)
 	if err != nil {
 		return nil, err
