@@ -48,7 +48,6 @@ func (s *stream) Read(p []byte) (int, error) {
 	n := 0
 	if s.bufferEnd-s.bufferStart > 0 {
 		n = copy(p, s.buffer[s.bufferStart:s.bufferEnd])
-		logger.Infof("Copied: %s", string(p))
 		s.bufferStart += n
 
 		if s.bufferStart >= s.bufferEnd {
@@ -67,7 +66,7 @@ func (s *stream) Write(p []byte) (int, error) {
 }
 
 func (s *stream) Close() error {
-	logger.Warningf("%s: Close stream (no actions)", s.id)
+	logger.Warningf("%s: Close stream", s.id)
 	return s.dataChannel.Close()
 }
 

@@ -10,9 +10,14 @@ import (
 	"testing"
 )
 
-const peerMessagingSendSingleMessageProtocolID = protocol.ID("/peer-messaging-send-single-message/1.0.0")
+const (
+	peerMessagingSendSingleMessageProtocolID = protocol.ID("/peer-messaging-send-single-message/1.0.0")
+)
 
-var helloWorldMessage = []byte("Hello world!")
+var (
+	helloWorldMessage     = []byte("Hello world!")
+	helloWorldMessageSize = len(helloWorldMessage)
+)
 
 func TestSendSingleMessage(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -25,8 +30,8 @@ func TestSendSingleMessage(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	secondHost.SetStreamHandler(protocolID, func(stream network.Stream) {
-		var message []byte
+	secondHost.SetStreamHandler(peerMessagingSendSingleMessageProtocolID, func(stream network.Stream) {
+		message := make([]byte, helloWorldMessageSize)
 
 		var n int
 		var err error
@@ -34,8 +39,6 @@ func TestSendSingleMessage(t *testing.T) {
 			n, err = stream.Read(message)
 			require.NoError(t, err)
 		}
-		panic("!!")
-
 		require.NotZero(t, n, "no data read")
 
 		// then
