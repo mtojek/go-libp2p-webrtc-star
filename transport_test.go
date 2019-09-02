@@ -72,11 +72,6 @@ func TestStreamReset(t *testing.T) {
 	ttransport.SubtestStreamReset(t, starTransportA, starTransportB, mAddr, identityA)
 }
 
-func TestStress50Conn10Stream50Msg(t *testing.T) {
-	starTransportA, starTransportB, mAddr, identityA := testParameters(t)
-	ttransport.SubtestStress50Conn10Stream50Msg(t, starTransportA, starTransportB, mAddr, identityA)
-}
-
 func testParameters(t *testing.T) (transport.Transport, transport.Transport, ma.Multiaddr, peer.ID) {
 	starTransportA, identityA := mustCreateStarTransport(t)
 	starTransportB, _ := mustCreateStarTransport(t)

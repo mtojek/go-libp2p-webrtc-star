@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/transport"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multiaddr-net"
+	"github.com/pion/datachannel"
 	"github.com/pion/webrtc"
 	"strings"
 	"time"
@@ -210,6 +211,24 @@ func (s *signal) openConnection(destination string, peerConnection *webrtc.PeerC
 		return nil, err
 	}
 
+	var detachedDataChannel datachannel.ReadWriteCloser
+	if !isServer {
+		dc, err := peerConnection.CreateDataChannel("data", nil)
+		if err != nil {
+			return nil, err
+		}
+
+		detachRes := detachChannel(dc)
+		select {
+		case res := <-detachRes:
+			if res.err != nil {
+				return nil, res.err
+			}
+			detachedDataChannel = res.dataChannel
+		}
+		// TODO ctx
+	}
+
 	return newConnection(connectionConfiguration{
 		remotePeerID:        remotePeerID,
 		remotePeerMultiaddr: dstMultiaddr,
@@ -220,7 +239,7 @@ func (s *signal) openConnection(destination string, peerConnection *webrtc.PeerC
 		transport:   s.transport,
 		multiplexer: s.multiplexer,
 		isServer:    isServer,
-	}, peerConnection), nil
+	}, peerConnection, detachedDataChannel), nil
 }
 
 func (s *signal) close() error {

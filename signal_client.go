@@ -62,8 +62,6 @@ func startClient(url string, peerMultiaddr ma.Multiaddr, addressBook addressBook
 				threadsRunning = true
 			}
 
-			logger.Debugf("%s: Connection is healthy.", sp.SID)
-
 			message, err := readMessage(connection)
 			if err != nil {
 				logger.Errorf("%s: Can't read message: %v", sp.SID, err)
