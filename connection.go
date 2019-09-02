@@ -21,12 +21,9 @@ type connection struct {
 	initChannel    datachannel.ReadWriteCloser
 	configuration  connectionConfiguration
 
-	accept chan chan detachResult
-
-	muxedConnection mux.MuxedConn
-	m               sync.RWMutex
-
-	closed bool
+	dataChannelDetachedCh chan chan detachResult
+	m                     sync.RWMutex
+	muxedConnection       mux.MuxedConn
 }
 
 var _ transport.CapableConn = new(connection)
@@ -50,7 +47,8 @@ type connectionConfiguration struct {
 
 	transport   transport.Transport
 	multiplexer mux.Multiplexer
-	isServer    bool
+
+	isServer bool
 }
 
 type detachResult struct {
@@ -60,45 +58,43 @@ type detachResult struct {
 
 func newConnection(configuration connectionConfiguration, peerConnection *webrtc.PeerConnection,
 	initChannel datachannel.ReadWriteCloser) *connection {
-	accept := make(chan chan detachResult)
+	dataChannelDetachedCh := make(chan chan detachResult)
 	peerConnection.OnDataChannel(func(dc *webrtc.DataChannel) {
-		detachRes := detachChannel(dc)
-		accept <- detachRes
+		dataChannelDetachedCh <- detachDataChannel(dc)
 	})
 	return &connection{
 		id:             createRandomID("connection"),
 		peerConnection: peerConnection,
 		configuration:  configuration,
 
-		accept:      accept,
-		initChannel: initChannel,
+		dataChannelDetachedCh: dataChannelDetachedCh,
+		initChannel:           initChannel,
 	}
 }
 
-func detachChannel(dc *webrtc.DataChannel) chan detachResult {
-	onOpenRes := make(chan detachResult)
-	dc.OnOpen(func() {
-		// Detach the data channel
-		raw, err := dc.Detach()
-		onOpenRes <- detachResult{raw, err}
+func detachDataChannel(dataChannel *webrtc.DataChannel) chan detachResult {
+	detachedCh := make(chan detachResult)
+	dataChannel.OnOpen(func() {
+		channel, err := dataChannel.Detach()
+		detachedCh <- detachResult{channel, err}
 	})
-	return onOpenRes
+	return detachedCh
 }
 
 func (c *connection) OpenStream() (mux.MuxedStream, error) {
 	logger.Debugf("%s: Open stream", c.id)
 
-	muxed, err := c.getMuxed()
+	muxedConnection, err := c.getMuxedConnection()
 	if err != nil {
 		return nil, err
 	}
-	if muxed != nil {
-		return muxed.OpenStream()
+	if muxedConnection != nil {
+		return muxedConnection.OpenStream()
 	}
 
-	rawDC := c.checkInitChannel()
-	if rawDC == nil {
-		pc, err := c.getPC()
+	rawDataChannel := c.checkInitChannel()
+	if rawDataChannel == nil {
+		pc, err := c.getPeerConnection()
 		if err != nil {
 			return nil, err
 		}
@@ -107,13 +103,11 @@ func (c *connection) OpenStream() (mux.MuxedStream, error) {
 			return nil, err
 		}
 
-		detachRes := detachChannel(dc)
-
-		res := <-detachRes
-		if res.err != nil {
-			return nil, res.err
+		detached := <-detachDataChannel(dc)
+		if detached.err != nil {
+			return nil, detached.err
 		}
-		rawDC = res.dataChannel
+		rawDataChannel = detached.dataChannel
 	}
 
 	return c.muxedConnection.OpenStream()
@@ -130,36 +124,35 @@ func (c *connection) checkInitChannel() datachannel.ReadWriteCloser {
 	return nil
 }
 
-func (c *connection) getPC() (*webrtc.PeerConnection, error) {
+func (c *connection) getPeerConnection() (*webrtc.PeerConnection, error) {
 	c.m.RLock()
 	pc := c.peerConnection
 	c.m.RUnlock()
 
 	if pc == nil {
-		return nil, errors.New("connection closed")
+		return nil, errors.New("peer connection closed")
 	}
-
 	return pc, nil
 }
 
 func (c *connection) AcceptStream() (mux.MuxedStream, error) {
 	logger.Debugf("%s: Accept stream", c.id)
-	muxed, err := c.getMuxed()
+	muxedConnection, err := c.getMuxedConnection()
 	if err != nil {
 		return nil, err
 	}
-	if muxed != nil {
-		return muxed.AcceptStream()
+	if muxedConnection != nil {
+		return muxedConnection.AcceptStream()
 	}
 
-	rawDC := c.checkInitChannel()
-	if rawDC == nil {
-		rawDC, err = c.awaitAccept()
+	rawDataChannel := c.checkInitChannel()
+	if rawDataChannel == nil {
+		rawDataChannel, err = c.awaitDataChannelDetached()
 	}
 	return c.muxedConnection.AcceptStream()
 }
 
-func (c *connection) getMuxed() (mux.MuxedConn, error) {
+func (c *connection) getMuxedConnection() (mux.MuxedConn, error) {
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -167,32 +160,32 @@ func (c *connection) getMuxed() (mux.MuxedConn, error) {
 		return c.muxedConnection, nil
 	}
 
-	rawDC := c.initChannel
-	if rawDC == nil {
+	rawDataChannel := c.initChannel
+	if rawDataChannel == nil {
 		var err error
-		rawDC, err = c.awaitAccept()
+		rawDataChannel, err = c.awaitDataChannelDetached()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	var err error
-	c.muxedConnection, err = c.configuration.multiplexer.NewConn(newStream(rawDC, fakeNetAddress), c.configuration.isServer)
+	c.muxedConnection, err = c.configuration.multiplexer.NewConn(newStream(rawDataChannel, fakeNetAddress),
+		c.configuration.isServer)
 	if err != nil {
 		return nil, err
 	}
-
 	return c.muxedConnection, nil
 }
 
-func (c *connection) awaitAccept() (datachannel.ReadWriteCloser, error) {
-	detachRes, ok := <-c.accept
+func (c *connection) awaitDataChannelDetached() (datachannel.ReadWriteCloser, error) {
+	detachedCh, ok := <-c.dataChannelDetachedCh
 	if !ok {
 		return nil, errors.New("connection closed")
 	}
 
-	res := <-detachRes
-	return res.dataChannel, res.err
+	detached := <-detachedCh
+	return detached.dataChannel, detached.err
 }
 
 func (c *connection) IsClosed() bool {
@@ -212,7 +205,7 @@ func (c *connection) Close() error {
 		err = c.peerConnection.Close()
 	}
 	c.peerConnection = nil
-	close(c.accept)
+	close(c.dataChannelDetachedCh)
 	return err
 }
 

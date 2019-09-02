@@ -6,7 +6,6 @@ import (
 	"errors"
 	"github.com/pion/webrtc"
 	"math/rand"
-	"strings"
 	"sync"
 	"time"
 )
@@ -68,7 +67,6 @@ type handshakeSubscription struct {
 }
 
 func newHandshakeSubscription() *handshakeSubscription {
-	logger.Debugf("INSTANCE CREATED!!")
 	return &handshakeSubscription{
 		subscribers: map[string]chan handshakeData{},
 		sink:        make(chan handshakeData),
@@ -92,13 +90,6 @@ func (hs *handshakeSubscription) emit(data handshakeData) {
 		hs.sink <- data
 	} else {
 		logger.Debugf("Received answer to probably cancelled handshake (intentID: %s)", data.IntentID)
-
-		var buf strings.Builder
-		for k := range hs.subscribers {
-			buf.WriteString(k)
-			buf.WriteString(", ")
-		}
-		logger.Debugf("%v: emit Subscribers: %s", hs, buf.String())
 	}
 }
 
@@ -113,14 +104,6 @@ func (hs *handshakeSubscription) subscribe(intentID string) <-chan handshakeData
 	defer hs.m.Unlock()
 
 	hs.subscribers[intentID] = make(chan handshakeData)
-
-	var buf strings.Builder
-	for k := range hs.subscribers {
-		buf.WriteString(k)
-		buf.WriteString(", ")
-	}
-	logger.Debugf("%v: subscribe Subscribers: %s", hs, buf.String())
-
 	return hs.subscribers[intentID]
 }
 

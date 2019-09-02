@@ -210,18 +210,18 @@ func (s *signal) openConnection(ctx context.Context, destination string, peerCon
 
 	var detachedDataChannel datachannel.ReadWriteCloser
 	if !isServer {
-		dc, err := peerConnection.CreateDataChannel("data", nil)
+		channel, err := peerConnection.CreateDataChannel("data", nil)
 		if err != nil {
 			return nil, err
 		}
 
-		detachRes := detachChannel(dc)
+		detachedCh := detachDataChannel(channel)
 		select {
-		case res := <-detachRes:
-			if res.err != nil {
-				return nil, res.err
+		case detached := <-detachedCh:
+			if detached.err != nil {
+				return nil, detached.err
 			}
-			detachedDataChannel = res.dataChannel
+			detachedDataChannel = detached.dataChannel
 		case <-ctx.Done():
 			return nil, errors.New("detaching data channel cancelled")
 		}
