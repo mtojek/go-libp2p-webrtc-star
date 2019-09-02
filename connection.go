@@ -60,7 +60,7 @@ func (c *connection) OpenStream() (mux.MuxedStream, error) {
 
 	if c.muxedConnection == nil {
 		var err error
-		c.muxedConnection, err = c.foo()
+		c.muxedConnection, err = c.createMuxedConnection()
 		if err != nil {
 			return nil, err
 		}
@@ -76,7 +76,7 @@ func (c *connection) AcceptStream() (mux.MuxedStream, error) {
 
 	if c.muxedConnection == nil {
 		var err error
-		c.muxedConnection, err = c.foo()
+		c.muxedConnection, err = c.createMuxedConnection()
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +84,7 @@ func (c *connection) AcceptStream() (mux.MuxedStream, error) {
 	return c.muxedConnection.AcceptStream()
 }
 
-func (c *connection) foo() (mux.MuxedConn, error) {
+func (c *connection) createMuxedConnection() (mux.MuxedConn, error) {
 	dataChannel, err := c.peerConnection.CreateDataChannel(createRandomID("datachannel"), nil)
 	if err != nil {
 		logger.Warningf("Can't create data channel: %v", err)
