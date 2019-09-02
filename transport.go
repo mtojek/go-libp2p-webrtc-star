@@ -31,7 +31,7 @@ func (t *Transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tr
 	if err != nil {
 		return nil, err
 	}
-	return signal.dial(p)
+	return signal.dial(ctx, p)
 }
 
 func (t *Transport) Listen(laddr ma.Multiaddr) (transport.Listener, error) {

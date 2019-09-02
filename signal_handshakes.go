@@ -1,6 +1,7 @@
 package star
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/pion/webrtc"
@@ -30,7 +31,7 @@ func (hd *handshakeData) String() string {
 	return string(m)
 }
 
-func (s *signal) doHandshake(offer handshakeData) (handshakeData, error) {
+func (s *signal) doHandshake(ctx context.Context, offer handshakeData) (handshakeData, error) {
 	subscription := s.handshakeSubscription.subscribe(offer.IntentID)
 
 	s.handshakeDataCh <- offer
@@ -40,6 +41,9 @@ func (s *signal) doHandshake(offer handshakeData) (handshakeData, error) {
 	case answer := <-subscription:
 		logger.Debugf("Handshake answer received (intentID: %s)", offer.IntentID)
 		return answer, nil
+	case <-ctx.Done():
+		s.handshakeSubscription.cancel(offer.IntentID)
+		return handshakeData{}, errors.New("handshake canceled")
 	case <-timeout:
 		s.handshakeSubscription.cancel(offer.IntentID)
 		return handshakeData{}, errors.New("handshake answer timeout")
@@ -83,7 +87,12 @@ func (hs *handshakeSubscription) emit(answer handshakeData) {
 		}
 		return
 	}
-	hs.sink <- answer
+
+	if !answer.Answer {
+		hs.sink <- answer
+	} else {
+		logger.Debugf("Received answer to a probably cancelled handshake (intentID: %s)", answer.IntentID)
+	}
 }
 
 func (hs *handshakeSubscription) unsubscribed() <-chan handshakeData {

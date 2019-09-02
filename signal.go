@@ -1,6 +1,7 @@
 package star
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/libp2p/go-libp2p-core/mux"
@@ -17,7 +18,7 @@ const (
 	maxMessageSize = 8192
 	messagePrefix  = "42"
 
-	handshakeAnswerTimeout = 30 * time.Second
+	handshakeAnswerTimeout = 10 * time.Minute
 )
 
 type signal struct {
@@ -117,7 +118,7 @@ func readProtocolForSignalURL(maddr ma.Multiaddr) string {
 	return "ws://"
 }
 
-func (s *signal) dial(remotePeerID peer.ID) (transport.CapableConn, error) {
+func (s *signal) dial(ctx context.Context, remotePeerID peer.ID) (transport.CapableConn, error) {
 	peerConnection, err := webrtcapi.NewPeerConnection(s.webRTCConfiguration)
 	if err != nil {
 		return nil, err
@@ -143,7 +144,7 @@ func (s *signal) dial(remotePeerID peer.ID) (transport.CapableConn, error) {
 		DstMultiaddr: s.signalMultiaddr.Encapsulate(dstMultiaddr).String(),
 		Signal:       offerDescription,
 	}
-	answer, err := s.doHandshake(offer)
+	answer, err := s.doHandshake(ctx, offer)
 	if err != nil {
 		return nil, err
 	}

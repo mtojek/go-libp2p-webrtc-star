@@ -2,13 +2,14 @@ package testutils
 
 import (
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/stretchr/testify/require"
-	"testing"
+	"log"
 )
 
-func MustAddProtocol(t *testing.T, protocol ma.Protocol) {
+func MustAddProtocol(protocol ma.Protocol) {
 	err := ma.AddProtocol(protocol)
-	require.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func MustCreateProtocol(code int, name string) ma.Protocol {

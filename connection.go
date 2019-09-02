@@ -27,6 +27,16 @@ type connection struct {
 
 var _ transport.CapableConn = new(connection)
 
+var fakeNetAddress net.Addr
+
+func init() {
+	var err error
+	fakeNetAddress, err = net.ResolveTCPAddr("tcp4", "0.0.0.0:1")
+	if err != nil {
+		logger.Fatalf("can't resolve fake TCP address")
+	}
+}
+
 type connectionConfiguration struct {
 	remotePeerID        peer.ID
 	remotePeerMultiaddr ma.Multiaddr
@@ -54,34 +64,38 @@ func newConnection(configuration connectionConfiguration, peerConnection *webrtc
 
 func (c *connection) OpenStream() (mux.MuxedStream, error) {
 	logger.Debugf("%s: Open stream", c.id)
-
-	c.m.Lock()
-	defer c.m.Unlock()
-
-	if c.muxedConnection == nil {
-		var err error
-		c.muxedConnection, err = c.createMuxedConnection()
-		if err != nil {
-			return nil, err
-		}
+	err := c.ensureMuxedConnectionEstablished()
+	if err != nil {
+		return nil, err
 	}
 	return c.muxedConnection.OpenStream()
 }
 
 func (c *connection) AcceptStream() (mux.MuxedStream, error) {
 	logger.Debugf("%s: Accept stream", c.id)
-
-	c.m.Lock()
-	defer c.m.Unlock()
-
-	if c.muxedConnection == nil {
-		var err error
-		c.muxedConnection, err = c.createMuxedConnection()
-		if err != nil {
-			return nil, err
-		}
+	err := c.ensureMuxedConnectionEstablished()
+	if err != nil {
+		return nil, err
 	}
 	return c.muxedConnection.AcceptStream()
+}
+
+func (c *connection) ensureMuxedConnectionEstablished() error {
+	if c.muxedConnection == nil {
+		c.m.Lock()
+		if c.muxedConnection == nil {
+			var err error
+			c.muxedConnection, err = c.createMuxedConnection()
+			c.m.Unlock()
+
+			if err != nil {
+				return err
+			}
+		} else {
+			c.m.Unlock()
+		}
+	}
+	return nil
 }
 
 func (c *connection) createMuxedConnection() (mux.MuxedConn, error) {
@@ -104,20 +118,7 @@ func (c *connection) createMuxedConnection() (mux.MuxedConn, error) {
 		logger.Errorf("Detaching data channel failed: %v", err)
 		return nil, r.err
 	}
-
-	nAddr, err := toNetAddress(c.configuration.localPeerMultiaddr)
-	if err != nil {
-		return nil, err
-	}
-	return c.configuration.multiplexer.NewConn(newStream(r.dataChannel, nAddr), c.configuration.isServer)
-}
-
-func toNetAddress(peerMultiaddr ma.Multiaddr) (net.Addr, error) { // TODO
-	addr, err := net.ResolveTCPAddr("tcp4", "0.0.0.0:9876")
-	if err != nil {
-		return nil, err
-	}
-	return addr, nil
+	return c.configuration.multiplexer.NewConn(newStream(r.dataChannel, fakeNetAddress), c.configuration.isServer)
 }
 
 func (c *connection) IsClosed() bool {
@@ -127,10 +128,10 @@ func (c *connection) IsClosed() bool {
 func (c *connection) Close() error {
 	logger.Debugf("%s: Close connection (no actions)", c.id)
 	err := c.peerConnection.Close()
+	c.closed = true
 	if err != nil {
 		return err
 	}
-	c.closed = true
 	return nil
 }
 
