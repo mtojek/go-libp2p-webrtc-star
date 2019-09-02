@@ -39,7 +39,7 @@ func (s *stream) Read(p []byte) (int, error) {
 		n := 0
 		n, err = s.dataChannel.Read(s.buffer)
 		if err != nil {
-			logger.Debugf("Error occurred while reading from data channel: %v", err)
+			logger.Errorf("Error occurred while reading from data channel: %v", err)
 			err = io.EOF
 		}
 		s.bufferEnd = n

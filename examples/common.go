@@ -36,7 +36,7 @@ func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 
 	muxer := yamux.DefaultTransport
 
-	starTransport := star.New(identity, peerstore).
+	starTransport := star.New(identity, peerstore, muxer).
 		WithSignalConfiguration(star.SignalConfiguration{
 			URLPath: "/socket.io/?EIO=3&transport=websocket",
 		}).
@@ -52,8 +52,7 @@ func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
 					},
 				},
 			},
-		}).
-		WithMuxer(muxer)
+		})
 
 	h, err := libp2p.New(ctx,
 		libp2p.Identity(privKey),

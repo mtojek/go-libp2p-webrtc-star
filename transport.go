@@ -13,7 +13,7 @@ import (
 
 type Transport struct {
 	signals map[string]*signal
-	m       sync.RWMutex
+	m       sync.Mutex
 
 	addressBook addressBook
 	peerID      peer.ID
@@ -44,28 +44,23 @@ func (t *Transport) Listen(laddr ma.Multiaddr) (transport.Listener, error) {
 }
 
 func (t *Transport) getOrRegisterSignal(addr ma.Multiaddr) (*signal, error) {
-	var signal *signal
 	var err error
-	var ok bool
 
 	sAddr := addr.String()
 
-	t.m.RLock()
-	signal, ok = t.signals[sAddr]
-	t.m.RUnlock()
+	t.m.Lock()
+	defer t.m.Unlock()
 
-	if !ok {
-		signal, err = newSignal(t, addr, t.addressBook, t.peerID, t.signalConfiguration, t.webRTCConfiguration,
-			t.multiplexer)
-		if err != nil {
-			return nil, err
-		}
-
-		t.m.Lock()
-		t.signals[sAddr] = signal
-		t.m.Unlock()
+	if signal, ok := t.signals[sAddr]; ok {
+		return signal, nil
 	}
-	return signal, err
+
+	t.signals[sAddr], err = newSignal(t, addr, t.addressBook, t.peerID, t.signalConfiguration, t.webRTCConfiguration,
+		t.multiplexer)
+	if err != nil {
+		return nil, err
+	}
+	return t.signals[sAddr], nil
 }
 
 func (t *Transport) unregisterSignal(addr ma.Multiaddr) error {
@@ -97,11 +92,12 @@ func (t *Transport) Proxy() bool {
 	return false
 }
 
-func New(peerID peer.ID, peerstore addressBook) *Transport {
+func New(peerID peer.ID, peerstore addressBook, multiplexer mux.Multiplexer) *Transport {
 	return &Transport{
 		signals:     map[string]*signal{},
 		peerID:      peerID,
 		addressBook: peerstore,
+		multiplexer: multiplexer,
 	}
 }
 
@@ -112,10 +108,5 @@ func (t *Transport) WithSignalConfiguration(c SignalConfiguration) *Transport {
 
 func (t *Transport) WithWebRTCConfiguration(c webrtc.Configuration) *Transport {
 	t.webRTCConfiguration = c
-	return t
-}
-
-func (t *Transport) WithMuxer(m mux.Multiplexer) *Transport {
-	t.multiplexer = m
 	return t
 }

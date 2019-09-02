@@ -12,14 +12,11 @@ import (
 	"github.com/pion/datachannel"
 	"github.com/pion/webrtc"
 	"strings"
-	"time"
 )
 
 const (
 	maxMessageSize = 8192
 	messagePrefix  = "42"
-
-	handshakeAnswerTimeout = 10 * time.Minute
 )
 
 type signal struct {
@@ -155,7 +152,7 @@ func (s *signal) dial(ctx context.Context, remotePeerID peer.ID) (transport.Capa
 		return nil, err
 	}
 
-	return s.openConnection(offer.DstMultiaddr, peerConnection, false)
+	return s.openConnection(ctx, offer.DstMultiaddr, peerConnection, false)
 }
 
 func (s *signal) accept() (transport.CapableConn, error) {
@@ -192,10 +189,10 @@ func (s *signal) accept() (transport.CapableConn, error) {
 		Answer:       true,
 	}
 	s.answerHandshake(answer)
-	return s.openConnection(offer.SrcMultiaddr, peerConnection, true)
+	return s.openConnection(context.Background(), offer.SrcMultiaddr, peerConnection, true)
 }
 
-func (s *signal) openConnection(destination string, peerConnection *webrtc.PeerConnection, isServer bool) (transport.CapableConn, error) {
+func (s *signal) openConnection(ctx context.Context, destination string, peerConnection *webrtc.PeerConnection, isServer bool) (transport.CapableConn, error) {
 	dstMultiaddr, err := ma.NewMultiaddr(destination)
 	if err != nil {
 		return nil, err
@@ -225,8 +222,9 @@ func (s *signal) openConnection(destination string, peerConnection *webrtc.PeerC
 				return nil, res.err
 			}
 			detachedDataChannel = res.dataChannel
+		case <-ctx.Done():
+			return nil, errors.New("detaching data channel cancelled")
 		}
-		// TODO ctx
 	}
 
 	return newConnection(connectionConfiguration{

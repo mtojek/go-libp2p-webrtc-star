@@ -6,9 +6,12 @@ import (
 	"errors"
 	"github.com/pion/webrtc"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 )
+
+const handshakeAnswerTimeout = 5 * time.Minute
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
@@ -34,6 +37,7 @@ func (hd *handshakeData) String() string {
 func (s *signal) doHandshake(ctx context.Context, offer handshakeData) (handshakeData, error) {
 	subscription := s.handshakeSubscription.subscribe(offer.IntentID)
 
+	logger.Debugf("Send handshake offer (intentID: %s)", offer.IntentID)
 	s.handshakeDataCh <- offer
 
 	timeout := time.After(handshakeAnswerTimeout)
@@ -42,9 +46,11 @@ func (s *signal) doHandshake(ctx context.Context, offer handshakeData) (handshak
 		logger.Debugf("Handshake answer received (intentID: %s)", offer.IntentID)
 		return answer, nil
 	case <-ctx.Done():
+		logger.Debugf("Cancel handshake (intentID: %s)", offer.IntentID)
 		s.handshakeSubscription.cancel(offer.IntentID)
 		return handshakeData{}, errors.New("handshake canceled")
 	case <-timeout:
+		logger.Debugf("Handshake timeout (intentID: %s)", offer.IntentID)
 		s.handshakeSubscription.cancel(offer.IntentID)
 		return handshakeData{}, errors.New("handshake answer timeout")
 	}
@@ -55,43 +61,44 @@ func (s *signal) answerHandshake(answer handshakeData) {
 }
 
 type handshakeSubscription struct {
-	m sync.RWMutex
+	m sync.Mutex
 
 	subscribers map[string]chan handshakeData
 	sink        chan handshakeData
 }
 
 func newHandshakeSubscription() *handshakeSubscription {
+	logger.Debugf("INSTANCE CREATED!!")
 	return &handshakeSubscription{
 		subscribers: map[string]chan handshakeData{},
 		sink:        make(chan handshakeData),
 	}
 }
 
-func (hs *handshakeSubscription) emit(answer handshakeData) {
-	logger.Debugf("Emit handshake answer (intentID: %s)", answer.IntentID)
+func (hs *handshakeSubscription) emit(data handshakeData) {
+	logger.Debugf("Emit handshake data (intentID: %s)", data.IntentID)
 
-	hs.m.RLock()
-	_, ok := hs.subscribers[answer.IntentID]
-	hs.m.RUnlock()
+	hs.m.Lock()
+	defer hs.m.Unlock()
 
-	if ok {
-		hs.m.Lock()
-		defer hs.m.Unlock()
-
-		c, ok := hs.subscribers[answer.IntentID]
-		if ok {
-			c <- answer
-			delete(hs.subscribers, answer.IntentID)
-			close(c)
-		}
+	if c, ok := hs.subscribers[data.IntentID]; ok {
+		c <- data
+		delete(hs.subscribers, data.IntentID)
+		close(c)
 		return
 	}
 
-	if !answer.Answer {
-		hs.sink <- answer
+	if !data.Answer {
+		hs.sink <- data
 	} else {
-		logger.Debugf("Received answer to a probably cancelled handshake (intentID: %s)", answer.IntentID)
+		logger.Debugf("Received answer to probably cancelled handshake (intentID: %s)", data.IntentID)
+
+		var buf strings.Builder
+		for k := range hs.subscribers {
+			buf.WriteString(k)
+			buf.WriteString(", ")
+		}
+		logger.Debugf("%v: emit Subscribers: %s", hs, buf.String())
 	}
 }
 
@@ -106,6 +113,14 @@ func (hs *handshakeSubscription) subscribe(intentID string) <-chan handshakeData
 	defer hs.m.Unlock()
 
 	hs.subscribers[intentID] = make(chan handshakeData)
+
+	var buf strings.Builder
+	for k := range hs.subscribers {
+		buf.WriteString(k)
+		buf.WriteString(", ")
+	}
+	logger.Debugf("%v: subscribe Subscribers: %s", hs, buf.String())
+
 	return hs.subscribers[intentID]
 }
 

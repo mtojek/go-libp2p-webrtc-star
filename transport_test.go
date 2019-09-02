@@ -62,6 +62,11 @@ func TestStress1Conn100Stream100Msg10MB(t *testing.T) {
 	ttransport.SubtestStress1Conn100Stream100Msg10MB(t, starTransportA, starTransportB, mAddr, identityA)
 }
 
+func TestStress50Conn10Stream50Msg(t *testing.T) {
+	starTransportA, starTransportB, mAddr, identityA := testParameters(t)
+	ttransport.SubtestStress50Conn10Stream50Msg(t, starTransportA, starTransportB, mAddr, identityA)
+}
+
 func TestStreamOpenStress(t *testing.T) {
 	starTransportA, starTransportB, mAddr, identityA := testParameters(t)
 	ttransport.SubtestStreamOpenStress(t, starTransportA, starTransportB, mAddr, identityA)
@@ -88,7 +93,7 @@ func mustCreateStarTransport(t *testing.T) (transport.Transport, peer.ID) {
 	identity := testutils.MustCreatePeerIdentity(t, privKey)
 	peerstore := pstoremem.NewPeerstore()
 	muxer := yamux.DefaultTransport
-	return New(identity, peerstore).
+	return New(identity, peerstore, muxer).
 		WithSignalConfiguration(SignalConfiguration{
 			URLPath: "/socket.io/?EIO=3&transport=websocket",
 		}).
@@ -104,6 +109,5 @@ func mustCreateStarTransport(t *testing.T) (transport.Transport, peer.ID) {
 					},
 				},
 			},
-		}).
-		WithMuxer(muxer), identity
+		}), identity
 }
