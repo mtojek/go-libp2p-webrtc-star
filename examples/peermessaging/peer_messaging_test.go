@@ -1,17 +1,24 @@
-package examples
+package peermessaging
 
 import (
 	"context"
+	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/mtojek/go-libp2p-webrtc-star/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
+	"time"
 )
 
 const (
 	peerMessagingSendSingleMessageProtocolID = protocol.ID("/peer-messaging-send-single-message/1.0.0")
+	waitForStreamTimeout                     = 5 * time.Minute
+
+	localSignalAddr  = "/dns4/localhost/tcp/9090/ws/p2p-webrtc-star"
+	remoteSignalAddr = "/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
 )
 
 var (
@@ -19,14 +26,18 @@ var (
 	helloWorldMessageSize = len(helloWorldMessage)
 )
 
+func init() {
+	golog.SetDebugLogging()
+}
+
 func TestSendSingleMessage(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	protocolID := peerMessagingSendSingleMessageProtocolID
 
-	firstHost := mustCreateHost(t, ctx)
-	secondHost := mustCreateHost(t, ctx)
+	firstHost := testutils.MustCreateHost(t, ctx, remoteSignalAddr)
+	secondHost := testutils.MustCreateHost(t, ctx, remoteSignalAddr)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -46,7 +57,7 @@ func TestSendSingleMessage(t *testing.T) {
 		wg.Done()
 	})
 
-	firstHostStream := waitForStream(t, func() (network.Stream, error) {
+	firstHostStream := testutils.WaitForStream(t, func() (network.Stream, error) {
 		return firstHost.NewStream(ctx, secondHost.ID(), protocolID)
 	}, waitForStreamTimeout)
 
