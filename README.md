@@ -13,10 +13,10 @@ $ go get github.com/mtojek/go-libp2p-webrtc-star
 
 ## Basic example
 
-(see: [examples/common.go](https://github.com/mtojek/go-libp2p-webrtc-star/blob/master/examples/common.go))
+(see: [testutils/host.go](https://github.com/mtojek/go-libp2p-webrtc-star/blob/master/testutils/host.go))
 
 ```go
-func mustCreateHost(t *testing.T, ctx context.Context) host.Host {
+func MustCreateHost(t *testing.T, ctx context.Context) host.Host {
 	signalMultiaddr := testutils.MustCreateSignalAddr(t, firstSignalAddr)
 
 	privKey := testutils.MustCreatePrivateKey(t)
