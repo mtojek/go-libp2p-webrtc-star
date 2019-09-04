@@ -3,6 +3,8 @@ libp2p WebRTC transport in Go that includes a discovery mechanism provided by th
 
 Status: **beta**
 
+Lead maintainer: [@mtojek](https://github.com/mtojek)
+
 ## Getting started
 
 ```bash
@@ -147,3 +149,13 @@ $ star-signal --port=9090 --host=127.0.0.1
 ```bash
 $ go test -parallel 1 -json ./... | jq -jr .Output
 ```
+
+## Contribution
+
+If you can develop or help improving the package, you're always welcome to open a new PR. 
+
+Please remember that the repository falls under the IPFS [Code of Conduct](https://github.com/ipfs/community/blob/master/code-of-conduct.md).
+
+## License
+
+[Apache License 2.0](https://github.com/mtojek/go-libp2p-webrtc-star/blob/master/LICENSE)
