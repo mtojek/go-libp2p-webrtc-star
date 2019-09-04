@@ -3,7 +3,7 @@ libp2p WebRTC transport in Go that includes a discovery mechanism provided by th
 
 Status: **beta**
 
-Lead maintainer: [@mtojek](https://github.com/mtojek)
+Lead maintainer: [Marcin Tojek (@mtojek)](https://github.com/mtojek)
 
 ## Getting started
 
