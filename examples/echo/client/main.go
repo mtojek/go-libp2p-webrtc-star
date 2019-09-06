@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/mtojek/go-libp2p-webrtc-star/testutils"
 	"log"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/mtojek/go-libp2p-webrtc-star/testutils"
 )
 
 const (

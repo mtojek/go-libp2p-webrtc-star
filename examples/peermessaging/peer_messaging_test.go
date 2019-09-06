@@ -2,16 +2,17 @@ package peermessaging
 
 import (
 	"context"
+	"io"
+	"sync"
+	"testing"
+	"time"
+
 	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/mtojek/go-libp2p-webrtc-star/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io"
-	"sync"
-	"testing"
-	"time"
 )
 
 const (
