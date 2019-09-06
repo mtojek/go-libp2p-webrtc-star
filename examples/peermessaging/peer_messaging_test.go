@@ -8,6 +8,7 @@ import (
 	"github.com/mtojek/go-libp2p-webrtc-star/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ const (
 	waitForStreamTimeout                     = 5 * time.Minute
 
 	localSignalAddr  = "/dns4/localhost/tcp/9090/ws/p2p-webrtc-star"
-	remoteSignalAddr = "/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
+	//remoteSignalAddr = "/dns4/wrtc-star.discovery.libp2p.io/tcp/443/wss/p2p-webrtc-star"
 )
 
 var (
@@ -36,20 +37,16 @@ func TestSendSingleMessage(t *testing.T) {
 
 	protocolID := peerMessagingSendSingleMessageProtocolID
 
-	firstHost := testutils.MustCreateHost(t, ctx, remoteSignalAddr)
-	secondHost := testutils.MustCreateHost(t, ctx, remoteSignalAddr)
+	firstHost := testutils.MustCreateHost(t, ctx, localSignalAddr)
+	secondHost := testutils.MustCreateHost(t, ctx, localSignalAddr)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	secondHost.SetStreamHandler(peerMessagingSendSingleMessageProtocolID, func(stream network.Stream) {
 		message := make([]byte, helloWorldMessageSize)
 
-		var n int
-		var err error
-		for n < 1 {
-			n, err = stream.Read(message)
-			require.NoError(t, err)
-		}
+		n, err := io.ReadFull(stream, message)
+		require.NoError(t, err)
 		require.NotZero(t, n, "no data read")
 
 		// then
