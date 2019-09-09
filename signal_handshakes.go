@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/pion/webrtc"
+	"github.com/pion/webrtc/v2"
 	"math/rand"
 	"sync"
 	"time"

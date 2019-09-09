@@ -10,7 +10,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pion/datachannel"
-	"github.com/pion/webrtc"
+	"github.com/pion/webrtc/v2"
 	"net"
 	"sync"
 )

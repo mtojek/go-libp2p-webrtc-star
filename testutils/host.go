@@ -7,7 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	yamux "github.com/libp2p/go-libp2p-yamux"
 	"github.com/mtojek/go-libp2p-webrtc-star"
-	"github.com/pion/webrtc"
+	"github.com/pion/webrtc/v2"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

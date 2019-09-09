@@ -7,7 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/transport"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/pion/webrtc"
+	"github.com/pion/webrtc/v2"
 	"sync"
 )
 

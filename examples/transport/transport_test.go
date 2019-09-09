@@ -1,4 +1,4 @@
-package star
+package transport
 
 import (
 	golog "github.com/ipfs/go-log"
@@ -7,9 +7,10 @@ import (
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	"github.com/libp2p/go-libp2p-testing/suites/transport"
 	yamux "github.com/libp2p/go-libp2p-yamux"
+	"github.com/mtojek/go-libp2p-webrtc-star"
 	"github.com/mtojek/go-libp2p-webrtc-star/testutils"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/pion/webrtc"
+	"github.com/pion/webrtc/v2"
 	"testing"
 )
 
@@ -17,9 +18,6 @@ const starAddress = "/dns4/localhost/tcp/9090/ws/p2p-webrtc-star"
 
 func init() {
 	golog.SetDebugLogging()
-
-	wsProtocol := testutils.MustCreateProtocol(wsProtocolCode, "ws")
-	testutils.MustAddProtocol(wsProtocol)
 }
 
 func TestBasic(t *testing.T) {
@@ -93,8 +91,8 @@ func mustCreateStarTransport(t *testing.T) (transport.Transport, peer.ID) {
 	identity := testutils.MustCreatePeerIdentity(t, privKey)
 	peerstore := pstoremem.NewPeerstore()
 	muxer := yamux.DefaultTransport
-	return New(identity, peerstore, muxer).
-		WithSignalConfiguration(SignalConfiguration{
+	return star.New(identity, peerstore, muxer).
+		WithSignalConfiguration(star.SignalConfiguration{
 			URLPath: "/socket.io/?EIO=3&transport=websocket",
 		}).
 		WithWebRTCConfiguration(webrtc.Configuration{
